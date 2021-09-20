@@ -81,13 +81,13 @@ public class TownOwnerMenu extends Menu {
                 //-------------------------------------------------------------------------
                 message.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions deleteTown " + player.getUniqueId()));
                 TextComponent message1 = new TextComponent("[NO]");
-                message.setColor(net.md_5.bungee.api.ChatColor.RED);
-                message.setBold(true);
-                message.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Think twice before clicking").color(net.md_5.bungee.api.ChatColor.GRAY).italic(true).create()));
+                message1.setColor(net.md_5.bungee.api.ChatColor.RED);
+                message1.setBold(true);
+                message1.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Think twice before clicking").color(net.md_5.bungee.api.ChatColor.GRAY).italic(true).create()));
                 //-------------------------------------------------------------------------
                 //TODO: Créer cette commande la (geofactions dontDeleteTown [player UUID])
                 //-------------------------------------------------------------------------
-                message.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions dontDeleteTown " + player.getUniqueId()));
+                message1.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions dontDeleteTown " + player.getUniqueId()));
 
                 player.spigot().sendMessage(message);
                 player.spigot().sendMessage(message1);

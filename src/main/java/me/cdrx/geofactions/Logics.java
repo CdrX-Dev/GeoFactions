@@ -2,33 +2,54 @@ package me.cdrx.geofactions;
 
 import me.cdrx.Main;
 import me.cdrx.Prefixes;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 
+import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.List;
 
 public class Logics {
     public static void createTown(UUID uuid, String townName){
         Player p = Bukkit.getPlayer(uuid);
         Chunk chunk = p.getChunk();
-        if(!isChunkClaimed(chunk)){
+        if(isChunkClaimed(chunk)){
             p.sendMessage(Prefixes.townBasicPrefix + "You can't claim this chunk because it is already owned by antoher town");
         }else{
             if(playerHasMoneyToCreateTown(p)){
-                claimChunk(chunk, townName);
-                setChunkAsPrimary(chunk, townName);
-                p.sendMessage(Prefixes.townBasicPrefix + "You successfully created you town " + ChatColor.BLUE + townName + " and claimed this chunk!");
-                p.sendMessage(Prefixes.townBasicPrefix + "You can now do '/geofactions' to open your owner menu!");
+                if(isTownNameTaken(townName)){
+                    p.sendMessage(Prefixes.townBasicPrefix + "This town name is already taken! You can't create a town with this name.");
+                    return;
+                }else{
+                    claimChunk(chunk, townName, p);
+                    setChunkAsPrimary(chunk, townName);
+                    p.sendMessage(Prefixes.townBasicPrefix + "You successfully created you town " + ChatColor.BLUE + townName + " and claimed this chunk!");
+                    p.sendMessage(Prefixes.townBasicPrefix + "You can now do '/geofactions' to open your owner menu!");
+                }
             }else{
                 p.sendMessage(Prefixes.townBasicPrefix + "You do not have enough ressource to create your town! You need 10 iron ingots and 10 gold ingots.");
             }
         }
-        //TODO: Procedure pour créer la ville.
+    }
+
+    private static boolean isTownNameTaken(String townName) {
+        for(TownCache tc : Main.getTownCache()){
+            if(tc.getTownName().equals(townName)){
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean isChunkClaimed(Chunk chunk) {
@@ -90,14 +111,115 @@ public class Logics {
         }
     }
 
-    public static void claimChunk(Chunk chunk, String townName){
-        //TODO: Faire la procedure pour claim un chunk!
-        //TODO: Trouver une manière de faire claim un chunk!
+    public static void claimChunk(Chunk chunk, String townName, Player player){
+        if(!isChunkClaimed(chunk)){
+            if(playerCanPayChunk(player)) {
+                try {
+                    final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                    PreparedStatement ps = connection.prepareStatement("INSERT INTO towns_claims VALUES(?, ?, ?, ?)");
+                    ps.setInt(1, chunk.getX());
+                    ps.setInt(2, chunk.getZ());
+                    ps.setString(3, chunk.getWorld().getName());
+                    ps.setString(4, townName);
+                    ps.executeUpdate();
+
+                    for (TownCache tc : Main.getTownCache()) {
+                        if (tc.getTownName().equals(townName)) {
+                            Chunk[] chunkList = tc.getClaimedChunks();
+                            chunkList = Arrays.copyOf(chunkList, chunkList.length + 1);
+                            chunkList[chunkList.length - 1] = chunk;
+                            tc.setClaimedChunks(chunkList);
+                            break;
+                        }
+                    }
+
+                    player.sendMessage(Prefixes.townBasicPrefix + "You successfully claimed this chunk!");
+                } catch (Exception e) {
+                    player.sendMessage(Prefixes.townBasicPrefix + "Something went wrong while trying to claim this chunk! Try again later.");
+                    e.printStackTrace();
+                }
+            }
+        }else{
+            player.sendMessage(Prefixes.townBasicPrefix + "This chunk is already claimed by a town!");
+        }
+    }
+
+    private static boolean playerCanPayChunk(Player player) {
+        Inventory inv = player.getInventory();
+        ItemStack stack1 = new ItemStack(Material.GOLD_INGOT, processPrice());
+        ItemStack stack2 = new ItemStack(Material.IRON_INGOT, processPrice());
+        if(inv.containsAtLeast(stack1,1) && inv.containsAtLeast(stack2, 1)){
+            inv.remove(stack1);
+            inv.remove(stack1);
+            return true;
+        }else{
+            player.sendMessage(Prefixes.townBasicPrefix + "In order to claim a chunk you need to have " + processPrice() + " gold and iron ingots on you!");
+            return false;
+        }
+    }
+
+    public static void invitePlayerInTown(Player sender, Player player, String townName){
+        if(!isPlayerResidentOfATown(player)){
+            net.md_5.bungee.api.chat.TextComponent acceptRequest = new TextComponent("[YES]");
+            acceptRequest.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+            acceptRequest.setBold(true);
+            acceptRequest.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Join " + townName + "?").color(net.md_5.bungee.api.ChatColor.BLUE).italic(true).create()));
+            acceptRequest.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions inviteAccept " + player.getUniqueId() + " " + townName));
+
+            net.md_5.bungee.api.chat.TextComponent denyRequest = new TextComponent("[YES]");
+            denyRequest.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+            denyRequest.setBold(true);
+            denyRequest.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Deny " + townName + " invitation?").color(net.md_5.bungee.api.ChatColor.BLUE).italic(true).create()));
+            denyRequest.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions inviteDeny " + player.getUniqueId() + " " + sender.getUniqueId()));
+
+            player.sendMessage(Prefixes.townBasicPrefix + "Would you want to join " + townName + "? (Request sent by " + sender.getName() + ")");
+            player.spigot().sendMessage(acceptRequest);
+            player.spigot().sendMessage(denyRequest);
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "Can't invite the player " + player.getName() + " because he is already resident of a town!");
+        }
+    }
+
+    public static boolean isPlayerResidentOfATown(Player player) {
+        for(TownCache tc : Main.getTownCache()){
+            for(UUID uuid : tc.getResidents()){
+                if(player.getUniqueId().equals(uuid)) return true;
+            }
+        }
+        return false;
     }
 
     public static void addPlayerAsResident(Player player, String townName){
-        //TODO: Faire la procedure pour ajouter le joueur dans le résidents.
-        //TODO: Faire un systeme d'invite que les admins et owner d'une town peuvent inviter des gens dans leur ville et ca demande une confirmation au gars pour la join.
+        try {
+            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO town_residents VALUES (?, ?)");
+            ps.setString(1, townName);
+            ps.setString(2, player.getUniqueId().toString());
+            ps.executeUpdate();
+
+            for(TownCache tc : Main.getTownCache()){
+                if(tc.getTownName().equals(townName)){
+                    UUID[] uuids = tc.getResidents();
+                    uuids = Arrays.copyOf(uuids, uuids.length + 1);
+                    uuids[uuids.length - 1] = player.getUniqueId();
+                    tc.setResidents(uuids);
+                    townAnnoucement(townName, Prefixes.townBasicPrefix + player.getName() + " just joined the town!");
+                }
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public static void townAnnoucement(String townName, String annoucement) {
+        for(TownCache tc : Main.getTownCache()){
+            if(tc.getTownName().equals(townName)){
+                for(UUID uuid : tc.getResidents()){
+                    Player p = Bukkit.getPlayer(uuid);
+                    p.sendMessage(annoucement);
+                }
+            }
+        }
     }
 
     public static void townRename(String townName){
@@ -113,7 +235,6 @@ public class Logics {
         }catch (SQLException e){
             e.printStackTrace();
         }
-        resetTownsClaimsCache();
     }
 
     public static int processPrice(){
@@ -129,41 +250,17 @@ public class Logics {
 
     public static double processClaimedLandPercent(int mapX, int mapY){
         double totalChunksCount = (mapX * mapY)/(16*16);
-        double totalChunksClaimed = Main.getTownsClaims().size();
+        double totalChunksClaimed = processClaimedChunk();
 
         return totalChunksClaimed / totalChunksCount;
     }
 
-    private static void resetTownsClaimsCache() {
-        HashMap<Chunk, String> map = Main.getTownsClaims();
-        map.clear();
-        try{
-            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
-            final PreparedStatement ps = connection.prepareStatement("SELECT * FROM towns_claims");
-            ResultSet rs = ps.executeQuery();
-            while(rs.next()){
-                String town = rs.getString("town");
-                String world = rs.getString("world");
-                int x = rs.getInt("x");
-                int z = rs.getInt("z");
-                World w = Bukkit.getWorld(world);
-                Chunk chunk = w.getChunkAt(x, z);
-                map.put(chunk, town);
-            }
-        }catch (Exception e){
-            e.printStackTrace();
+    private static double processClaimedChunk() {
+        List<Chunk> chunkList = new ArrayList<>();
+        for(TownCache tc : Main.getTownCache()){
+            chunkList.addAll(Arrays.asList(tc.getClaimedChunks()));
         }
-        Main.setTownsClaims(map);
-
-    }
-
-    public static boolean isTownOfPlayer(Player player, String townName) {
-        HashMap<UUID, String> map = Main.getResidentsTown();
-        if(map.containsKey(player.getUniqueId())){
-            return map.get(player.getUniqueId()).equals(townName);
-        }else{
-            return false;
-        }
+        return chunkList.size();
     }
 
     private static boolean playerHasMoneyToCreateTown(Player p) {
@@ -277,11 +374,9 @@ public class Logics {
                 townCache1.setPrimaryChunks(primaryClaimsMap.get(townName));
             }
 
-            Bukkit.getServer().getLogger().info();
-
         }catch (SQLException e){
             e.printStackTrace();
-            Bukkit.getServer().getLogger().info(Prefixes.severeError + "Something herribly wrong happened while loading database info in cache on server!");
+            Bukkit.getLogger().info(Prefixes.severeError + "Something herribly wrong happened while loading database info in cache on server!");
         }
     }
 
@@ -302,7 +397,7 @@ public class Logics {
         for(TownCache cache : list){
             for(UUID uuid : cache.getResidents()){
                 if(uuid1.equals(uuid)){
-                    if(uuid1.equals(cache.getOwner()); return "owner";
+                    if(uuid1.equals(cache.getOwner())) return "owner";
                     for(UUID uuid2 : cache.getAdmins()){
                         if(uuid2.equals(uuid1)); return "admin";
                     }
@@ -313,5 +408,6 @@ public class Logics {
                 }
             }
         }
+        return null;
     }
 }

@@ -1,16 +1,18 @@
 package me.cdrx.gui.menus;
 
+import me.cdrx.geofactions.Logics;
 import me.cdrx.gui.Menu;
 import me.cdrx.gui.PlayerMenuUtility;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
-import org.bukkit.block.Skull;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class TownPopulationMenu extends Menu {
     public TownPopulationMenu(PlayerMenuUtility playerMenuUtility) {
@@ -40,28 +42,14 @@ public class TownPopulationMenu extends Menu {
         for(int i = 0 ; i < intList.length ; i++){
             Player player = playersList[i];
             int integer = intList[i];
-            
-            List<TownCache> list1 = Main.getTownCache();
-            String role = null
-            for(TownCache cache : list1){
-                for(UUID uuid : cache.getResidents()){
-                    if(uuid.equals(p.getUniqueID())){
-                        role = Bukkit.getPlayer(cache.getPlayerRole());
-                        break;
-                    }
-                }
-            }
-            
+            String role = Logics.getPlayerRole(player.getUniqueId());
             ItemStack head = new ItemStack(Material.PLAYER_HEAD, 1);
             SkullMeta skullMeta = (SkullMeta) head.getItemMeta();
             skullMeta.setOwner(player.getName());
             skullMeta.setDisplayName(ChatColor.GREEN + player.getName());
             List<String> lorehead = new ArrayList<String>();
-            lorehead.add(role)
+            lorehead.add(role);
             skullMeta.setLore(lorehead);
-            List<String> lorehead = new ArrayList<String>();
-            lorehead.add("Your population");
-            skullMeta.setLore(lorerol);
             head.setItemMeta(skullMeta);
             inventory.setItem(integer, head);
         }
