@@ -2,13 +2,15 @@ package me.cdrx.geofactions;
 
 import me.cdrx.Main;
 import me.cdrx.Prefixes;
-import me.cdrx.gui.Menu;
 import me.cdrx.gui.PlayerMenuUtility;
 import me.cdrx.gui.menus.*;
+import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+
+import java.util.UUID;
 
 public class GeoFactionsCommands implements CommandExecutor {
     @Override
@@ -17,22 +19,22 @@ public class GeoFactionsCommands implements CommandExecutor {
             if(sender instanceof Player){
                 Player p = (Player) sender;
                 PlayerMenuUtility menuUtility = Main.getPlayerMenuUtility(p);
-                if(!isTownResident(p)){
-                    Menu inv = new CreatingTownMenu(menuUtility);
+                if(!Logics.isPlayerResidentOfATown(p)){
+                    CreatingTownMenu inv = new CreatingTownMenu(menuUtility);
                     inv.open();
                 }else{
                     p.sendMessage(Prefixes.townBasicPrefix + "You do have a town broo!");
                     if(isPlayerTownOwner(p)){
-                        Menu inv = new TownOwnerMenu(menuUtility);
+                        TownOwnerMenu inv = new TownOwnerMenu(menuUtility);
                         inv.open();
                     }else if(isPlayerTownAdmin(p)){
-                        Menu inv = new TownAdminMenu(menuUtility);
+                        TownAdminMenu inv = new TownAdminMenu(menuUtility);
                         inv.open();
                     }else if(isPlayerTownTreasurer(p)){
-                        Menu inv = new TownTreasurerMenu(menuUtility);
+                        TownTreasurerMenu inv = new TownTreasurerMenu(menuUtility);
                         inv.open();
                     }else{
-                        Menu inv = new TownHabMenu(menuUtility);
+                        TownHabMenu inv = new TownHabMenu(menuUtility);
                         inv.open();
                     }
                 }
@@ -40,33 +42,65 @@ public class GeoFactionsCommands implements CommandExecutor {
                 sender.sendMessage(Prefixes.townBasicPrefix + "This command are only for human beign!");
             }
         }else{
-            sender.sendMessage(Prefixes.townBasicPrefix + "This command does not exists yet!");
+            if(args[0].equals("inviteAccept")){
+                Player player = Bukkit.getPlayer(UUID.fromString(args[1]));
+                String townName = args[2];
+
+                Logics.addPlayerAsResident(player, townName);
+            }else if(args[0].equals("inviteDeny")) {
+                Player player = Bukkit.getPlayer(UUID.fromString(args[1]));
+                Player sender1 = Bukkit.getPlayer(UUID.fromString(args[2]));
+
+                player.sendMessage(Prefixes.townBasicPrefix + "You did the right choice buddy!");
+                sender1.sendMessage(Prefixes.townBasicPrefix + player.getName() + " denied your request!");
+            }else if(args[0].equals("deleteTown")) {
+                UUID playerUUID = UUID.fromString(args[1]);
+                for(TownCache tc : Main.getTownCache()){
+                    for(UUID uuid : tc.getResidents()){
+                        if(uuid.equals(playerUUID)){
+                            Logics.deleteTown(tc.getTownName());
+                        }
+                    }
+                }
+            }else if(args[0].equals("dontDeleteTown")){
+                Player player = Bukkit.getPlayer(UUID.fromString(args[1]));
+                player.sendMessage(Prefixes.townBasicPrefix + "Hooo, so you finally decided to not delete your town.");
+            }else{
+                sender.sendMessage(Prefixes.townBasicPrefix + "This command does not exists yet!");
+            }
         }
         return true;
     }
 
-    private boolean isTownResident(Player p) {
-        if(Main.getResidentsTown().containsKey(p.getUniqueId())){
-            return true;
-        }else{
-            try{
-                //TODO: Requete au serveur SQL
-            }catch (Exception e){
-                return false;
+
+    private boolean isPlayerTownTreasurer(Player p) {
+        for(TownCache tc : Main.getTownCache()){
+            for(UUID uuid : tc.getTreasurers()){
+                if(uuid.equals(p.getUniqueId())){
+                    return true;
+                }
             }
         }
         return false;
     }
 
-    private boolean isPlayerTownTreasurer(Player p) {
-        return false;
-    }
-
     private boolean isPlayerTownAdmin(Player p) {
+        for(TownCache tc : Main.getTownCache()){
+            for(UUID uuid : tc.getAdmins()){
+                if(uuid.equals(p.getUniqueId())){
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
     private boolean isPlayerTownOwner(Player p) {
+        for(TownCache tc : Main.getTownCache()){
+            if(tc.getOwner().equals(p.getUniqueId())){
+                return true;
+            }
+        }
         return false;
     }
 }

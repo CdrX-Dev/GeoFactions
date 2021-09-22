@@ -36,7 +36,7 @@ public class TownPopulationMenu extends Menu {
 
     @Override
     public void setMenuItems() {
-        Player p = playerMenuUtility.getPlayer();
+        Player p = playerMenuUtility.getOwner();
         Player[] playersList = getTownPlayers();
         int[] intList = {10,11,12,13,14,15,16,19,20,21,22,23,24,25,28,29,30,31,32,33,34,31,37,38,39,40,41,42,43};
         for(int i = 0 ; i < intList.length ; i++){

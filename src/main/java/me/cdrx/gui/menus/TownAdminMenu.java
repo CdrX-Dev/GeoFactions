@@ -2,11 +2,13 @@ package me.cdrx.gui.menus;
 
 import me.cdrx.Main;
 import me.cdrx.Prefixes;
+import me.cdrx.geofactions.TownCache;
 import me.cdrx.gui.Menu;
 import me.cdrx.gui.PlayerMenuUtility;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
-import org.bukkit.ChatColor;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -28,7 +30,7 @@ public class TownAdminMenu extends Menu {
 
     @Override
     public int getSlots() {
-        return 54;
+        return 45;
     }
 
     @Override
@@ -56,16 +58,26 @@ public class TownAdminMenu extends Menu {
                 Menu inv = new TownBankMenu(playerMenuUtility);
                 inv.open();
             }
-            
+            //claim
+            else if (e.getSlot() == 16) {
+                List<UUID> list = Main.getClaimsView();
+                if(list.contains(player.getUniqueId())){
+                    list.remove(player.getUniqueId());
+                } else{
+                    list.add(player.getUniqueId());
+                }
+                Main.setClaimsView(list);
+            }
+
         }
     }
 
     @Override
     public void setMenuItems() {
-        Player p = playerMenuUtility.getPlayer();
+        Player p = playerMenuUtility.getOwner();
 
         //Contour
-        int[] list = {0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,37,38,39,40,41,42,43,44,};
+        int[] list = {0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,36,37,38,39,40,41,42,43,44};
         for(int integer : list) {
             ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
             inventory.setItem(integer, item);
@@ -77,16 +89,17 @@ public class TownAdminMenu extends Menu {
         List<String> lorepop = new ArrayList<String>();
         lorepop.add("Your population");
         metapop.setLore(lorepop);
+        pop.setItemMeta(metapop);
         inventory.setItem(10,pop);
 
         //Banque
-        ItemStack bnk = new ItemStack(Material.GOLD_INGOT);
+        ItemStack bnk = new ItemStack(Material.CHEST);
         ItemMeta metabnk = bnk.getItemMeta();
         metabnk.setDisplayName(ChatColor.GRAY + "BANK");
         List<String> lorebnk = new ArrayList<String>();
-        //TO DO syncroniser argent dans banque dans lore
-        lorebnk.add("Your money");
+        lorebnk.add("Your town bank");
         metabnk.setLore(lorebnk);
+        bnk.setItemMeta(metabnk);
         inventory.setItem(28,bnk);
 
         //Claim
@@ -96,6 +109,7 @@ public class TownAdminMenu extends Menu {
         List<String> loreclm = new ArrayList<String>();
         loreclm.add("See your claims whit a map");
         metaclm.setLore(loreclm);
+        clm.setItemMeta(metaclm);
         inventory.setItem(16,clm);
 
         //Recap
@@ -127,18 +141,17 @@ public class TownAdminMenu extends Menu {
         //TODO: Status de guerre
         lorercp.add("-----------------------------");
         metarcp.setLore(lorercp);
+        rcp.setItemMeta(metarcp);
         inventory.setItem(22,rcp);
 
         //Invite a player
         ItemStack inv = new ItemStack(Material.MAGENTA_GLAZED_TERRACOTTA);
         ItemMeta metainv = inv.getItemMeta();
         metainv.setDisplayName(ChatColor.GRAY + "Invite a player");
+        List<String> loreinv = new ArrayList<String>();
+        loreinv.add("Invite a friend or a servant!");
+        metainv.setLore(loreinv);
+        inv.setItemMeta(metainv);
         inventory.setItem(34,inv);
-        
-        //Back
-        ItemStack bck = new ItemStack(Material.REDSTONE);
-        ItemMeta metabck = bck.getItemMeta();
-        metabck.setDisplayName(ChatColor.GRAY + "Leave");
-        inventory.setItem(36,bck);
     }
 }

@@ -7,18 +7,15 @@ import net.md_5.bungee.api.chat.ComponentBuilder;
 import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
-import java.awt.*;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.List;
 
 public class Logics {
     public static void createTown(UUID uuid, String townName){
@@ -30,8 +27,15 @@ public class Logics {
             if(playerHasMoneyToCreateTown(p)){
                 if(isTownNameTaken(townName)){
                     p.sendMessage(Prefixes.townBasicPrefix + "This town name is already taken! You can't create a town with this name.");
-                    return;
                 }else{
+                    UUID[] uuids = {};
+                    UUID[] residents = {uuid};
+                    Chunk[] chunks = {};
+
+                    List<TownCache> list = Main.getTownCache();
+                    list.add(new TownCache(townName , uuid, uuids, uuids, residents, chunks, chunks));
+                    Main.setTownCache(list);
+
                     claimChunk(chunk, townName, p);
                     setChunkAsPrimary(chunk, townName);
                     p.sendMessage(Prefixes.townBasicPrefix + "You successfully created you town " + ChatColor.BLUE + townName + " and claimed this chunk!");
@@ -57,18 +61,6 @@ public class Logics {
             for(Chunk chunk1 : townCache.getClaimedChunks()){
                 if(chunk.equals(chunk1)) return true;
             }
-        }
-        return false;
-    }
-
-    public static boolean isChunkClaimedByTown(Chunk chunk, String townName){
-        TownCache townCache = null;
-        for(TownCache tc : Main.getTownCache()){
-            if(tc.getTownName().equals(townName)) townCache = tc;
-        }
-
-        for(Chunk chunk1 : townCache.getClaimedChunks()){
-            if(chunk.equals(chunk1)) return true;
         }
         return false;
     }
@@ -166,8 +158,8 @@ public class Logics {
             acceptRequest.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Join " + townName + "?").color(net.md_5.bungee.api.ChatColor.BLUE).italic(true).create()));
             acceptRequest.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions inviteAccept " + player.getUniqueId() + " " + townName));
 
-            net.md_5.bungee.api.chat.TextComponent denyRequest = new TextComponent("[YES]");
-            denyRequest.setColor(net.md_5.bungee.api.ChatColor.GREEN);
+            net.md_5.bungee.api.chat.TextComponent denyRequest = new TextComponent("[NO]");
+            denyRequest.setColor(net.md_5.bungee.api.ChatColor.RED);
             denyRequest.setBold(true);
             denyRequest.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new ComponentBuilder("Deny " + townName + " invitation?").color(net.md_5.bungee.api.ChatColor.BLUE).italic(true).create()));
             denyRequest.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/geofactions inviteDeny " + player.getUniqueId() + " " + sender.getUniqueId()));
@@ -238,13 +230,9 @@ public class Logics {
     }
 
     public static int processPrice(){
-        //X dans la fonction (en pourcentage)
         double claimedLand = processClaimedLandPercent(3000, 3000) * 100;
-
-        //Fonction
         double fonction = (Math.pow(claimedLand, 75/100) + 10);
 
-        //Valeur de retour
         return (int) Math.ceil(fonction);
     }
 
@@ -269,6 +257,8 @@ public class Logics {
     }
 
     public static void initializeCache() {
+        Bukkit.getServer().getLogger().info(ChatColor.GREEN + "Starting cache initialization!");
+        long startTime = Calendar.getInstance().getTimeInMillis();
         try{
             final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
             PreparedStatement ps = connection.prepareStatement("SELECT * FROM towns_list");
@@ -378,6 +368,7 @@ public class Logics {
             e.printStackTrace();
             Bukkit.getLogger().info(Prefixes.severeError + "Something herribly wrong happened while loading database info in cache on server!");
         }
+        Bukkit.getServer().getLogger().info(ChatColor.GREEN + "Finished cache initialization! This task took " + (Calendar.getInstance().getTimeInMillis() - startTime) + "ms!");
     }
 
     private static UUID[] getUUIDListFromString(String admins_uuid) {
@@ -409,5 +400,39 @@ public class Logics {
             }
         }
         return null;
+    }
+
+    public static boolean isChunkClaimedWithPlayerTown(Player p, Chunk chunk) {
+        for(TownCache tc : Main.getTownCache()){
+            for(UUID uuid1 : tc.getResidents()){
+                if(p.getUniqueId().equals(uuid1)){
+                    for(Chunk c1 : tc.getClaimedChunks()){
+                        if(chunk.equals(c1)){
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public static void closeCacheProcedure() {
+        long start = Calendar.getInstance().getTimeInMillis();
+        try{
+            for(TownCache tc : Main.getTownCache()){
+                //TODO: Faire le reste de la procedure.
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        Bukkit.getServer().getLogger().info("Shutdown of cache has been done in " + (Calendar.getInstance().getTimeInMillis() - start) + "ms!");
+    }
+
+    public static boolean doesPlayerExist(String playerName){
+        for(Player p : Bukkit.getOnlinePlayers()){
+            if(p.getName().equals(playerName)) return true;
+        }
+        return false;
     }
 }

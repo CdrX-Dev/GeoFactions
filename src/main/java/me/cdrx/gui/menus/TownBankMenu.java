@@ -11,12 +11,12 @@ public class TownBankMenu extends Menu {
 
     @Override
     public String getMenuName() {
-        return null;
+        return "Bank";
     }
 
     @Override
     public int getSlots() {
-        return 0;
+        return 27;
     }
 
     @Override

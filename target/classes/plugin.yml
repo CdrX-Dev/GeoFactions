@@ -2,3 +2,7 @@ name: GeoFactions
 authors: [CdrX, Mat]
 version: ALPHA_0.1
 main: me.cdrx.Main
+api-version: 1.17
+commands:
+  geofactions:
+    description: C'est genre la commande principale de geo-faction!

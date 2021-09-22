@@ -1,6 +1,7 @@
 package me.cdrx;
 
 import me.cdrx.geofactions.Logics;
+import me.cdrx.geofactions.TownCache;
 import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
 import org.bukkit.entity.Player;
@@ -37,13 +38,25 @@ public class Listeners implements Listener {
                 e.setCancelled(true);
                 String playerName = e.getMessage();
                 Player player = e.getPlayer();
-                String townName = Main.getResidentsTown().get(player.getUniqueId());
-                if(!playerName.equalsIgnoreCase("cancel")){
-                    for(Player p : Bukkit.getOnlinePlayers()){
-                        if(p.getName().equals(playerName)) Logics.addPlayerAsResident(Bukkit.getPlayer(playerName), townName);
+                String townName = null;
+                for(TownCache tc : Main.getTownCache()){
+                    for(UUID uuid : tc.getResidents()){
+                        if(uuid.equals(player.getUniqueId())){
+                            townName = tc.getTownName();
+                        }
                     }
-                    player.sendMessage(Prefixes.townBasicPrefix + "Could not invite player " + playerName + ". Is it really a player name?");
+                }
+                if(!playerName.equalsIgnoreCase("cancel")){
+                    if(Logics.doesPlayerExist(playerName)){
+                        Logics.invitePlayerInTown(e.getPlayer(), Bukkit.getPlayer(playerName), townName);
+                    }else{
+                        player.sendMessage(Prefixes.townBasicPrefix + "Could not invite player " + playerName + ". Is it really a player name?");
+                    }
                 }else{
+                    HashMap<UUID, String> map = Main.getTypingPlayers();
+                    map.remove(player.getUniqueId());
+                    Main.setTypingPlayers(map);
+
                     player.sendMessage(Prefixes.townBasicPrefix + "Ok, cancelling right now!");
                 }
             }
@@ -55,26 +68,20 @@ public class Listeners implements Listener {
     @EventHandler
     public void onBlockBreak(BlockBreakEvent e){
         Chunk chunk = e.getBlock().getChunk();
-        HashMap<Chunk, String> map = Main.getTownsClaims();
-        if(map.containsKey(chunk)){
-            String townName = map.get(chunk);
-            if(!Logics.isTownOfPlayer(e.getPlayer(), townName)){
-                e.setCancelled(true);
-                e.getPlayer().sendMessage(Prefixes.townBasicPrefix + "This is not your town! You can't do that here!");
-            }
+        if(!Logics.isChunkClaimed(chunk)) return;
+        if(!Logics.isChunkClaimedWithPlayerTown(e.getPlayer(), chunk)){
+            e.setCancelled(true);
+            e.getPlayer().sendMessage(Prefixes.townBasicPrefix + "This is not your town! You can't do that here!");
         }
     }
 
     @EventHandler
     public void onBlockPlace(BlockPlaceEvent e){
         Chunk chunk = e.getBlock().getChunk();
-        HashMap<Chunk, String> map = Main.getTownsClaims();
-        if(map.containsKey(chunk)){
-            String townName = map.get(chunk);
-            if(!Logics.isTownOfPlayer(e.getPlayer(), townName)){
-                e.setCancelled(true);
-                e.getPlayer().sendMessage(Prefixes.townBasicPrefix + "This is not your town! You can't do that here!");
-            }
+        if(!Logics.isChunkClaimed(chunk)) return;
+        if(!Logics.isChunkClaimedWithPlayerTown(e.getPlayer(), chunk)){
+            e.setCancelled(true);
+            e.getPlayer().sendMessage(Prefixes.townBasicPrefix + "This is not your town! You can't do that here!");
         }
     }
 }

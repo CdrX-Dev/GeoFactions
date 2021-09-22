@@ -2,20 +2,32 @@ package me.cdrx.gui;
 
 import org.bukkit.entity.Player;
 
+/*
+Companion class to all menus. This is needed to pass information across the entire
+ menu system no matter how many inventories are opened or closed.
+
+ Each player has one of these objects, and only one.
+ */
+
 public class PlayerMenuUtility {
-    //Classe (Objet) attribué a chaque joueurs dans une Collection dans la classe Main (Permet de stocker des infos sur les menus pour chaque joeuurs)
 
-    private Player player;
+    private Player owner;
+    //store the player that will be killed so we can access him in the next menu
+    private Player playerToKill;
 
-    public PlayerMenuUtility(Player player) {
-        this.player = player;
+    public PlayerMenuUtility(Player p) {
+        this.owner = p;
     }
 
-    public Player getPlayer() {
-        return player;
+    public Player getOwner() {
+        return owner;
     }
 
-    public void setPlayer(Player player) {
-        this.player = player;
+    public Player getPlayerToKill() {
+        return playerToKill;
+    }
+
+    public void setPlayerToKill(Player playerToKill) {
+        this.playerToKill = playerToKill;
     }
 }

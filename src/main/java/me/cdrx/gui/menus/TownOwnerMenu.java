@@ -34,7 +34,7 @@ public class TownOwnerMenu extends Menu {
 
     @Override
     public int getSlots() {
-        return 45;
+        return 54;
     }
 
     @Override
@@ -64,10 +64,6 @@ public class TownOwnerMenu extends Menu {
                 Menu inv = new TownBankMenu(playerMenuUtility);
                 inv.open();
             }
-            //Back
-            else if (e.getSlot() == 45) {
-                player.closeInventory();
-            }
             //Delete
             else if (e.getSlot() == 37) {
                 player.closeInventory();
@@ -93,66 +89,67 @@ public class TownOwnerMenu extends Menu {
                 player.spigot().sendMessage(message1);
             }
             //claim
-            else if (e.getSlot() == 16){
-                //-------------------------------------------------------------------------
-                //TODO: CED OCCUPE TOI DE ÇA
-                //-------------------------------------------------------------------------
+            else if (e.getSlot() == 16) {
+                List<UUID> list = Main.getClaimsView();
+                if(list.contains(player.getUniqueId())){
+                    list.remove(player.getUniqueId());
+                } else{
+                    list.add(player.getUniqueId());
+                }
+                Main.setClaimsView(list);
             }
         }
     }
 
     @Override
     public void setMenuItems() {
-        Player p = playerMenuUtility.getPlayer();
+        Player p = playerMenuUtility.getOwner();
 
         //Contour
-        int[] list = {0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,36,44,46,47,48,49,50,51,52,53};
+        int[] list = {0,1,2,3,4,5,6,7,8,9,17,18,26,27,35,36,44,45,46,47,48,49,50,51,52,53};
         for(int integer : list) {
             ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
             inventory.setItem(integer, item);
         }
-
-        //Back
-        ItemStack bck = new ItemStack(Material.REDSTONE);
-        ItemMeta metabck = bck.getItemMeta();
-        metabck.setDisplayName(ChatColor.GRAY + "Leave");
-        inventory.setItem(45,bck);
-
         //Habitants
         ItemStack pop = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta metapop = pop.getItemMeta();
         metapop.setDisplayName(ChatColor.GRAY + "POPULATION");
-        List<String> lorepop = new ArrayList<String>();
+        ArrayList<String> lorepop = new ArrayList<String>();
         lorepop.add("Your population");
         metapop.setLore(lorepop);
+        pop.setItemMeta(metapop);
         inventory.setItem(10,pop);
 
         //Rôles
         ItemStack rol = new ItemStack(Material.STICK);
         ItemMeta metarol = rol.getItemMeta();
         metarol.setDisplayName(ChatColor.GRAY + "ROLES");
-        List<String> lorerol = new ArrayList<String>();
+        ArrayList<String> lorerol = new ArrayList<String>();
         lorerol.add("You can see the roles here");
         metarol.setLore(lorerol);
+        rol.setItemMeta(metarol);
         inventory.setItem(19,rol);
 
         //Banque
-        ItemStack bnk = new ItemStack(Material.GOLD_INGOT);
+        ItemStack bnk = new ItemStack(Material.CHEST);
         ItemMeta metabnk = bnk.getItemMeta();
         metabnk.setDisplayName(ChatColor.GRAY + "BANK");
-        List<String> lorebnk = new ArrayList<String>();
+        ArrayList<String> lorebnk = new ArrayList<String>();
         //TO DO syncroniser inventaire
-        lorebnk.add("Your money");
+        lorebnk.add("Your town bank");
         metabnk.setLore(lorebnk);
+        bnk.setItemMeta(metabnk);
         inventory.setItem(28,bnk);
 
         //Claim
         ItemStack clm = new ItemStack(Material.IRON_AXE);
         ItemMeta metaclm = clm.getItemMeta();
         metaclm.setDisplayName(ChatColor.GRAY + "CLAIM");
-        List<String> loreclm = new ArrayList<String>();
-        loreclm.add("See your claims whit a map");
+        ArrayList<String> loreclm = new ArrayList<String>();
+        loreclm.add("See your claims");
         metaclm.setLore(loreclm);
+        clm.setItemMeta(metaclm);
         inventory.setItem(16,clm);
 
         //Recap
@@ -177,13 +174,14 @@ public class TownOwnerMenu extends Menu {
         ItemMeta metarcp = rcp.getItemMeta();
         metarcp.setDisplayName(ChatColor.GRAY + townName);
         List<String> lorercp = new ArrayList<String>();
-        lorercp.add("-----------------------------");
+        lorercp.add("-------------------------");
         lorercp.add("Residents: " + population);
         lorercp.add("Claimed chunk: " + claimedchunk);
         lorercp.add("Owner: " + owner);
         //TODO: Status de guerre
-        lorercp.add("-----------------------------");
+        lorercp.add("-------------------------");
         metarcp.setLore(lorercp);
+        rcp.setItemMeta(metarcp);
         inventory.setItem(22,rcp);
 
 
@@ -194,14 +192,19 @@ public class TownOwnerMenu extends Menu {
         ItemMeta metadel = del.getItemMeta();
         metadel.setDisplayName(ChatColor.GRAY + "DELETE");
         List<String> loredel = new ArrayList<String>();
-        loredel.add("Delete your town" + ChatColor.BOLD + ChatColor.RED + "FOREVER");
+        loredel.add("Delete your town " + ChatColor.BOLD + ChatColor.RED + "FOREVER");
         metadel.setLore(loredel);
+        del.setItemMeta(metadel);
         inventory.setItem(37,del);
 
         //Invite a player
         ItemStack inv = new ItemStack(Material.MAGENTA_GLAZED_TERRACOTTA);
         ItemMeta metainv = inv.getItemMeta();
-        metainv.setDisplayName(ChatColor.GRAY + "Invite a player");
+        metainv.setDisplayName(ChatColor.GRAY + "INVITE A PLAYER");
+        List<String> loreinv = new ArrayList<String>();
+        loreinv.add("Invite a friend or a servant!");
+        metainv.setLore(loreinv);
+        inv.setItemMeta(metainv);
         inventory.setItem(25,inv);
     }
 }

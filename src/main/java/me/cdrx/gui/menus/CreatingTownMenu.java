@@ -34,30 +34,34 @@ public class CreatingTownMenu extends Menu {
     
     @Override
     public void handleMenu(InventoryClickEvent e) {
-        if(e.getView().getTitle().equals("Create a town")) {
-            e.setCancelled(true);
-            if (e.getSlot() == 12) {
-                //inventaire se ferme
-                Player player = (Player) e.getWhoClicked();
-                player.closeInventory();
+        if (e.getSlot() == 12) {
+            //inventaire se ferme
+            Player player = (Player) e.getWhoClicked();
+            player.closeInventory();
 
-                //message de écrire nom de la ville dans le chat
-                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of your city");
-                player.sendMessage(Prefixes.townBasicPrefix + "Type 'cancel' to cancel this action!");
+            //message de écrire nom de la ville dans le chat
+            player.sendMessage(Prefixes.townBasicPrefix + "Type the name of your city");
+            player.sendMessage(Prefixes.townBasicPrefix + "Type 'cancel' to cancel this action!");
 
-                //reconnaitre nom de la ville écris dans le chat
-                HashMap<UUID, String> list = Main.getTypingPlayers();
-                list.put(e.getWhoClicked().getUniqueId(), "create_town");
-                Main.setTypingPlayers(list);
-            } else if (e.getSlot() == 14) {
-                e.getWhoClicked().closeInventory();
-            }
+            //reconnaitre nom de la ville écris dans le chat
+            HashMap<UUID, String> list = Main.getTypingPlayers();
+            list.put(e.getWhoClicked().getUniqueId(), "create_town");
+            Main.setTypingPlayers(list);
+        } else if (e.getSlot() == 14) {
+            e.getWhoClicked().closeInventory();
         }
     }
 
     @Override
     public void setMenuItems() {
-        Player p = playerMenuUtility.getPlayer();
+        Player p = playerMenuUtility.getOwner();
+
+        //Contour
+        int[] list = {0,1,2,3,4,5,6,7,8,9,17,18,19,20,21,22,23,24,25,26};
+        for(int integer : list) {
+            ItemStack cont = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+            inventory.setItem(integer, cont);
+        }
 
         //Bouton pour accepter
         ItemStack item = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
