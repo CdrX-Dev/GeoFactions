@@ -17,7 +17,10 @@ public class MenuListener implements Listener {
         // an InventoryHolder can be a Menu is because our Menu
         // class implements InventoryHolder!!
         if (holder instanceof Menu) {
-            e.setCancelled(true); //prevent them from fucking with the inventory
+            if(!e.getView().getTitle().equals("Bank")){
+                e.setCancelled(true);
+            }
+            //prevent them from fucking with the inventory
             if (e.getCurrentItem() == null) { //deal with null exceptions
                 return;
             }

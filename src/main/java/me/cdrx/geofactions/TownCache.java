@@ -1,8 +1,10 @@
 package me.cdrx.geofactions;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Chunk;
+import org.bukkit.inventory.ItemStack;
 
-import java.util.UUID;
+import java.util.*;
 
 public class TownCache {
     private String townName;
@@ -10,17 +12,23 @@ public class TownCache {
     private UUID[] admins;
     private UUID[] treasurers;
     private UUID[] residents;
-    private Chunk[] claimedChunks;
-    private Chunk[] primaryChunks;
+    private HashMap<int[], String> claimedChunksUpdate = new HashMap<>();
+    private HashMap<int[], String> primaryChunksUpdate = new HashMap<>();
+    private List<ItemStack> townBank;
+    private Chunk warChunk;
+    private int secondsInWarChunk;
 
-    public TownCache(String townName1, UUID owner1, UUID[] admins1, UUID[] treasurers1, UUID[] residents1, Chunk[] claimedChunks1, Chunk[] primaryChunks1){
+    public TownCache(String townName1, UUID owner1, UUID[] admins1, UUID[] treasurers1, UUID[] residents1, Chunk[] claimedChunks1, Chunk[] primaryChunks1, List<ItemStack> bank1){
+        this.warChunk = null;
+        this.secondsInWarChunk = 0;
         this.townName = townName1;
         this.owner = owner1;
         this.admins = admins1;
         this.treasurers = treasurers1;
         this.residents = residents1;
-        this.claimedChunks = claimedChunks1;
-        this.primaryChunks = primaryChunks1;
+        setClaimedChunks(claimedChunks1);
+        setPrimaryChunks(primaryChunks1);
+        this.townBank = bank1;
     }
 
     public String getTownName() {
@@ -64,19 +72,60 @@ public class TownCache {
     }
 
     public Chunk[] getClaimedChunks() {
-        return claimedChunks;
+        Chunk[] listChunk = {};
+        for (int[] ints : claimedChunksUpdate.keySet()) {
+            listChunk = Arrays.copyOf(listChunk, listChunk.length + 1);
+            listChunk[listChunk.length - 1] = Bukkit.getWorld(claimedChunksUpdate.get(ints)).getChunkAt(ints[0], ints[1]);
+        }
+        return listChunk;
     }
 
     public void setClaimedChunks(Chunk[] claimedChunks) {
-        this.claimedChunks = claimedChunks;
+        this.claimedChunksUpdate.clear();
+        for(Chunk c : claimedChunks){
+            int[] ints = {c.getX(), c.getZ()};
+            this.claimedChunksUpdate.put(ints, c.getWorld().getName());
+        }
     }
 
     public Chunk[] getPrimaryChunks() {
-        return primaryChunks;
+        Chunk[] listChunk = {};
+        for(int[] ints : primaryChunksUpdate.keySet()){
+            listChunk = Arrays.copyOf(listChunk, listChunk.length + 1);
+            listChunk[listChunk.length - 1] = Bukkit.getWorld(primaryChunksUpdate.get(ints)).getChunkAt(ints[0], ints[1]);
+        }
+        return listChunk;
     }
 
     public void setPrimaryChunks(Chunk[] primaryChunks) {
-        this.primaryChunks = primaryChunks;
+        this.primaryChunksUpdate.clear();
+        for(Chunk c : primaryChunks){
+            int[] ints = {c.getX(), c.getZ()};
+            this.primaryChunksUpdate.put(ints, c.getWorld().getName());
+        }
     }
 
+    public List<ItemStack> getTownBank() {
+        return townBank;
+    }
+
+    public void setTownBank(List<ItemStack> townBank) {
+        this.townBank = townBank;
+    }
+
+    public Chunk getWarChunk() {
+        return warChunk;
+    }
+
+    public void setWarChunk(Chunk warChunk) {
+        this.warChunk = warChunk;
+    }
+
+    public int getSecondsInWarChunk() {
+        return secondsInWarChunk;
+    }
+
+    public void setSecondsInWarChunk(int secondsInWarChunk) {
+        this.secondsInWarChunk = secondsInWarChunk;
+    }
 }

@@ -1,6 +1,7 @@
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\sql\DbCredentials.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\gui\PlayerMenuUtility.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\gui\menus\TownHabMenu.java
+C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\ClaimsListCommands.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\sql\DbConnection.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\sql\DbManager.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\gui\menus\RolesMenu.java
@@ -17,5 +18,7 @@ C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\geofactions\
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\geofactions\GeoFactionsCommands.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\gui\menus\CreatingTownMenu.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\geofactions\Logics.java
+C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\gui\menus\EnemyClaimMenu.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\Main.java
+C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\ClaimsTPCommands.java
 C:\Users\CdrX\Desktop\launcher\FactionsPlugin\src\main\java\me\cdrx\Prefixes.java

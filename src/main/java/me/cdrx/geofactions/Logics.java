@@ -33,11 +33,37 @@ public class Logics {
                     Chunk[] chunks = {};
 
                     List<TownCache> list = Main.getTownCache();
-                    list.add(new TownCache(townName , uuid, uuids, uuids, residents, chunks, chunks));
+                    list.add(new TownCache(townName , uuid, uuids, uuids, residents, chunks, chunks, getBankFromSQL(townName)));
                     Main.setTownCache(list);
 
+                    try{
+                        final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                        PreparedStatement ps = connection.prepareStatement("INSERT INTO towns_list VALUES(?)");
+                        ps.setString(1, townName);
+                        ps.executeUpdate();
+
+                        ps = connection.prepareStatement("INSERT INTO towns_owner VALUES(?, ?)");
+                        ps.setString(1, townName);
+                        ps.setString(2, uuid.toString());
+                        ps.executeUpdate();
+
+                        ps = connection.prepareStatement("INSERT INTO town_residents VALUES(?, ?)");
+                        ps.setString(1, townName);
+                        ps.setString(2, uuid.toString());
+                        ps.executeUpdate();
+
+                        ps = connection.prepareStatement("INSERT INTO towns_banks VALUES(?, ?, ?, ?)");
+                        ps.setString(1, townName);
+                        ps.setString(2, "empty");
+                        ps.setString(3, "empty");
+                        ps.setString(4, "empty");
+                        ps.executeUpdate();
+                    }catch(Exception e){
+                        e.printStackTrace();
+                    }
+
                     claimChunk(chunk, townName, p);
-                    setChunkAsPrimary(chunk, townName);
+                    setChunkAsPrimary(p ,chunk, townName);
                     p.sendMessage(Prefixes.townBasicPrefix + "You successfully created you town " + ChatColor.BLUE + townName + " and claimed this chunk!");
                     p.sendMessage(Prefixes.townBasicPrefix + "You can now do '/geofactions' to open your owner menu!");
                 }
@@ -47,13 +73,230 @@ public class Logics {
         }
     }
 
-    private static boolean isTownNameTaken(String townName) {
+    public static List<ItemStack> getBankFromSQL(String townName){
+        List<ItemStack> inventory = new ArrayList<>();
+
+        try{
+            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+            PreparedStatement ps = connection.prepareStatement("SELECT * FROM towns_banks WHERE town=?");
+            ps.setString(1, townName);
+            ResultSet rs = ps.executeQuery();
+
+            String str = "empty";
+            while(rs.next()){
+                str = rs.getString("inventory");
+                break;
+            }
+
+            if(str.equals("empty")) return inventory;
+
+            List<String> strList = new ArrayList<>();
+            strList.addAll(Arrays.asList(str.split(";")));
+            for(String str1 : strList){
+                String[] strList2 = str1.split(",");
+                Bukkit.getLogger().info("working with database to bank substring " + Arrays.toString(strList2) + "!");
+                inventory.add(new ItemStack(Material.getMaterial(strList2[0]), Integer.parseInt(strList2[1].trim())));
+            }
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
+
+        return inventory;
+    }
+
+    public static void pushBankToSQL(String townName, List<ItemStack> bank){
+        try{
+            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+            PreparedStatement ps = connection.prepareStatement("DELETE FROM towns_banks WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("INSERT INTO towns_banks VALUES(?, ?, ?, ?)");
+            ps.setString(1, townName);
+            ps.setString(2, bankToString(bank));
+            ps.setString(3, "empty");
+            ps.setString(4, "empty");
+            ps.executeUpdate();
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
+    }
+
+    public static boolean isChunkPrimary(Chunk chunk){
+        for(TownCache tc : Main.getTownCache()){
+            for(Chunk c : tc.getPrimaryChunks()){
+                if(c.equals(chunk)) return true;
+            }
+        }
+        return false;
+    }
+
+    public static String bankToString(List<ItemStack> bank) {
+        String bankStr = "";
+        if(bank.size() == 0) return "empty";
+        for(ItemStack item : bank){
+            if(item != null){
+                bankStr = bankStr + item.getType() + "," + item.getAmount() + ";";
+            }
+        }
+        if(bankStr.isEmpty()) return "empty";
+        return bankStr;
+    }
+
+    public static boolean isTownNameTaken(String townName) {
         for(TownCache tc : Main.getTownCache()){
             if(tc.getTownName().equals(townName)){
                 return true;
             }
         }
         return false;
+    }
+
+    public static void setTownAdmin(Player sender,UUID uuid, String townName){
+        Player p = Bukkit.getPlayer(uuid);
+        if(isPlayerResidentOfATown(Bukkit.getPlayer(uuid))){
+            if(getTownOfPlayer(sender).equals(getTownOfPlayer(Bukkit.getPlayer(uuid)))){
+                if(getPlayerRole(uuid).equals("admin")){
+                    sender.sendMessage(Prefixes.townBasicPrefix + "This player is already an admin!");
+                    return;
+                }
+                if(getPlayerRole(uuid).equals("treasurer")){
+                    removeTownTreasurer(sender, uuid, townName);
+                }
+                UUID[] admins = getTownByName(townName).getAdmins();
+                admins = Arrays.copyOf(admins, admins.length + 1);
+                admins[admins.length - 1] = uuid;
+                getTownByName(townName).setAdmins(admins);
+
+                try{
+                    final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                    PreparedStatement ps = connection.prepareStatement("INSERT INTO town_admins VALUES(?, ?)");
+                    ps.setString(1, townName);
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
+                sender.sendMessage(Prefixes.townBasicPrefix + "Successfully setted this player as a town admin!");
+            }else{
+                sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+            }
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+        }
+    }
+
+    public static void setTownTreasurer(Player sender, UUID uuid, String townName){
+        if(isPlayerResidentOfATown(Bukkit.getPlayer(uuid))){
+            if(getTownOfPlayer(sender).equals(getTownOfPlayer(Bukkit.getPlayer(uuid)))){
+                if(getPlayerRole(uuid).equals("admin")){
+                    sender.sendMessage(Prefixes.townBasicPrefix + "This player is already an admin!");
+                    return;
+                }
+                if(getPlayerRole(uuid).equals("treasurer")){
+                    sender.sendMessage(Prefixes.townBasicPrefix + "This player is already a town treasurer!");
+                    return;
+                }
+                UUID[] treasurers = getTownByName(townName).getTreasurers();
+                treasurers = Arrays.copyOf(treasurers, treasurers.length + 1);
+                treasurers[treasurers.length - 1] = uuid;
+                getTownByName(townName).setTreasurers(treasurers);
+
+                try{
+                    final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                    PreparedStatement ps = connection.prepareStatement("INSERT INTO town_treasurers VALUES(?, ?)");
+                    ps.setString(1, townName);
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
+                sender.sendMessage(Prefixes.townBasicPrefix + "Successfully setted this player as a town treasurer!");
+            }else{
+                sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+            }
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+        }
+    }
+
+    public static void removeTownAdmin(Player sender, UUID uuid, String townName){
+        if(isPlayerResidentOfATown(Bukkit.getPlayer(uuid))){
+            if(getTownOfPlayer(sender).equals(getTownOfPlayer(Bukkit.getPlayer(uuid)))){
+                if(!getPlayerRole(uuid).equals("admin")){
+                    sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even a town admin!");
+                    return;
+                }
+                List<UUID> adminsList = new LinkedList<>(Arrays.asList(getTownByName(getTownOfPlayer(sender)).getAdmins()));
+                adminsList.remove(uuid);
+                getTownByName(townName).setAdmins(adminsList.toArray(new UUID[adminsList.size()]));
+
+                try{
+                    final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                    PreparedStatement ps = connection.prepareStatement("DELETE FROM town_admins WHERE town=? AND admins_uuid=?");
+                    ps.setString(1, townName);
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
+                sender.sendMessage(Prefixes.townBasicPrefix + "Successfully removed this player from the admins!");
+            }else{
+                sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+            }
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+        }
+    }
+
+    public static void removeTownTreasurer(Player sender, UUID uuid, String townName){
+        if(isPlayerResidentOfATown(Bukkit.getPlayer(uuid))){
+            if(getTownOfPlayer(sender).equals(getTownOfPlayer(Bukkit.getPlayer(uuid)))){
+                if(!getPlayerRole(uuid).equals("treasurer")){
+                    sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even a town treasurer!");
+                    return;
+                }
+                List<UUID> treasurersList = new LinkedList<>(Arrays.asList(getTownByName(getTownOfPlayer(sender)).getTreasurers()));
+                treasurersList.remove(uuid);
+                getTownByName(townName).setTreasurers(treasurersList.toArray(new UUID[treasurersList.size()]));
+
+                try{
+                    final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                    PreparedStatement ps = connection.prepareStatement("DELETE FROM town_treasurers WHERE town=? AND treasurers_uuid=?");
+                    ps.setString(1, townName);
+                    ps.setString(2, uuid.toString());
+                    ps.executeUpdate();
+                }catch (Exception e){
+                    e.printStackTrace();
+                }
+
+                sender.sendMessage(Prefixes.townBasicPrefix + "Successfully removed this player from the treasurers!");
+            }else{
+                sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+            }
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "This player is not even in your town broo!");
+        }
+    }
+
+    public static TownCache getTownByName(String townName){
+        for(TownCache tc : Main.getTownCache()){
+            if(tc.getTownName().equals(townName)) return tc;
+        }
+        return null;
+    }
+
+    public static String getTownOfPlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        for(TownCache tc : Main.getTownCache()){
+            for(UUID uuid1 : tc.getResidents()){
+                if(uuid.equals(uuid1)) return tc.getTownName();
+            }
+        }
+        return null;
     }
 
     public static boolean isChunkClaimed(Chunk chunk) {
@@ -65,41 +308,27 @@ public class Logics {
         return false;
     }
 
-    public static void setChunkAsPrimary(Chunk chunk, String townName) {
-        try {
-            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
-            PreparedStatement ps = connection.prepareStatement("INSERT INTO primary_chunks VALUES(?, ?, ?, ?)");
-            ps.setInt(1, chunk.getX());
-            ps.setInt(2, chunk.getZ());
-            ps.setString(3, chunk.getWorld().getName());
-            ps.setString(4, townName);
-            ps.executeUpdate();
+    public static void setChunkAsPrimary(Player sender, Chunk chunk, String townName) {
+        TownCache town = Logics.getTownByName(townName);
+        if(town.getPrimaryChunks().length != 6){
+            try{
+                final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                PreparedStatement ps = connection.prepareStatement("INSERT INTO primary_chunks VALUES(?, ?, ?, ?)");
+                ps.setInt(1, chunk.getX());
+                ps.setInt(2, chunk.getZ());
+                ps.setString(3, chunk.getWorld().getName());
+                ps.setString(4, townName);
+                ps.executeUpdate();
 
-            //Check pour la bonne classe qui représente la ville.
-            TownCache townCache = null;
-            for(TownCache tc : Main.getTownCache()){
-                if(tc.getTownName().equals(townName)) townCache = tc;
+                List<Chunk> primaryList = new LinkedList<Chunk>(Arrays.asList(town.getPrimaryChunks()));
+                primaryList.add(chunk);
+                town.setPrimaryChunks(primaryList.toArray(new Chunk[primaryList.size()]));
+                sender.sendMessage(Prefixes.townBasicPrefix + "Successfully added this chunk to your primary chunks!");
+            }catch (SQLException ex){
+                ex.printStackTrace();
             }
-            
-            Chunk[] listPrimaryChunks = {};
-
-            //Loop a travers les resultats de retour
-            ps = connection.prepareStatement("SELECT * FROM primary_chunks");
-            ResultSet rs = ps.executeQuery();
-            while(rs.next()){
-                String tName = rs.getString("town");
-                if(tName.equals(townName)){
-                    World world = Bukkit.getWorld(rs.getString("world"));
-                    int x = rs.getInt("x");
-                    int z = rs.getInt("z");
-                    listPrimaryChunks = Arrays.copyOf(listPrimaryChunks, listPrimaryChunks.length + 1);
-                    listPrimaryChunks[listPrimaryChunks.length - 1] = world.getChunkAt(x,z);
-                }
-            }
-            //Tu set le primarys chunk de la ville
-            townCache.setPrimaryChunks(listPrimaryChunks);
-        }catch (SQLException e){
-            e.printStackTrace();
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "You can't claim more than six primary chunks!");
         }
     }
 
@@ -126,6 +355,7 @@ public class Logics {
                     }
 
                     player.sendMessage(Prefixes.townBasicPrefix + "You successfully claimed this chunk!");
+                    player.sendMessage(Prefixes.townBasicPrefix + "Price is currently at : " + processPrice());
                 } catch (Exception e) {
                     player.sendMessage(Prefixes.townBasicPrefix + "Something went wrong while trying to claim this chunk! Try again later.");
                     e.printStackTrace();
@@ -136,13 +366,35 @@ public class Logics {
         }
     }
 
-    private static boolean playerCanPayChunk(Player player) {
+    public static boolean playerCanPayChunk(Player player) {
         Inventory inv = player.getInventory();
         ItemStack stack1 = new ItemStack(Material.GOLD_INGOT, processPrice());
         ItemStack stack2 = new ItemStack(Material.IRON_INGOT, processPrice());
         if(inv.containsAtLeast(stack1,1) && inv.containsAtLeast(stack2, 1)){
-            inv.remove(stack1);
-            inv.remove(stack1);
+            boolean gold = false;
+            boolean iron = false;
+            for(ItemStack itemStack : inv.getContents()){
+                if(itemStack != null){
+                    if(itemStack.getType().equals(Material.GOLD_INGOT)){
+                        if(!gold){
+                            itemStack.setAmount(itemStack.getAmount() - processPrice());
+                            gold = true;
+                        }
+                    }
+
+                    if(itemStack.getType().equals(Material.IRON_INGOT)){
+                        if(!iron){
+                            itemStack.setAmount(itemStack.getAmount() - processPrice());
+                            iron = true;
+                        }
+                    }
+
+                    if(iron && gold){
+                        break;
+                    }
+                }
+            }
+
             return true;
         }else{
             player.sendMessage(Prefixes.townBasicPrefix + "In order to claim a chunk you need to have " + processPrice() + " gold and iron ingots on you!");
@@ -151,6 +403,15 @@ public class Logics {
     }
 
     public static void invitePlayerInTown(Player sender, Player player, String townName){
+        HashMap<UUID, String> map = Main.getTypingPlayers();
+        map.remove(sender.getUniqueId());
+        Main.setTypingPlayers(map);
+
+        if(getTownByName(getTownOfPlayer(sender.getPlayer())).getResidents().length == 28){
+            sender.sendMessage(Prefixes.townBasicPrefix + "You can't invite this player, you already have reached your residents limit!");
+            return;
+        }
+
         if(!isPlayerResidentOfATown(player)){
             net.md_5.bungee.api.chat.TextComponent acceptRequest = new TextComponent("[YES]");
             acceptRequest.setColor(net.md_5.bungee.api.ChatColor.GREEN);
@@ -170,6 +431,64 @@ public class Logics {
         }else{
             sender.sendMessage(Prefixes.townBasicPrefix + "Can't invite the player " + player.getName() + " because he is already resident of a town!");
         }
+    }
+
+    public static void removeResidentFromTown(Player sender, Player player, TownCache town){
+        String grade = Logics.getPlayerRole(player.getUniqueId());
+        if(grade.equals("owner")){
+            sender.sendMessage(Prefixes.townBasicPrefix + "You can't remove the owner from the town!");
+        }else if(grade.equals("admin")){
+            List<UUID> residentsList = new LinkedList<UUID>(Arrays.asList(town.getResidents()));
+            List<UUID> adminsList = new LinkedList<UUID>(Arrays.asList(town.getAdmins()));
+            residentsList.remove(player.getUniqueId());
+            adminsList.remove(player.getUniqueId());
+            town.setResidents(residentsList.toArray(new UUID[residentsList.size()]));
+            town.setAdmins(adminsList.toArray(new UUID[adminsList.size()]));
+            try{
+                final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                PreparedStatement ps = connection.prepareStatement("DELETE FROM town_admins WHERE admins_uuid=?");
+                ps.setString(1, player.getUniqueId().toString());
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("DELETE FROM town_residents WHERE residents_uuid=?");
+                ps.setString(1, player.getUniqueId().toString());
+                ps.executeUpdate();
+            }catch (SQLException e){
+                e.printStackTrace();
+            }
+        }else if(grade.equals("treasurer")){
+            List<UUID> residentsList = new LinkedList<UUID>(Arrays.asList(town.getResidents()));
+            List<UUID> treasurersList = new LinkedList<UUID>(Arrays.asList(town.getTreasurers()));
+            residentsList.remove(player.getUniqueId());
+            treasurersList.remove(player.getUniqueId());
+            town.setResidents(residentsList.toArray(new UUID[residentsList.size()]));
+            town.setTreasurers(treasurersList.toArray(new UUID[treasurersList.size()]));
+            try{
+                final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                PreparedStatement ps = connection.prepareStatement("DELETE FROM town_treasurers WHERE treasurers_uuid=?");
+                ps.setString(1, player.getUniqueId().toString());
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("DELETE FROM town_residents WHERE residents_uuid=?");
+                ps.setString(1, player.getUniqueId().toString());
+                ps.executeUpdate();
+            }catch (SQLException e){
+                e.printStackTrace();
+            }
+        }else if(grade.equals("resident")){
+            List<UUID> residentsList = new LinkedList<UUID>(Arrays.asList(town.getResidents()));
+            residentsList.remove(player.getUniqueId());
+            town.setResidents(residentsList.toArray(new UUID[residentsList.size()]));
+            try{
+                final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                PreparedStatement ps = connection.prepareStatement("DELETE FROM town_residents WHERE residents_uuid=?");
+                ps.setString(1, player.getUniqueId().toString());
+                ps.executeUpdate();
+            }catch (SQLException e){
+                e.printStackTrace();
+            }
+        }
+        sender.sendMessage(Prefixes.townBasicPrefix + "Successfully removed this player from the residents of this town!");
     }
 
     public static boolean isPlayerResidentOfATown(Player player) {
@@ -214,17 +533,101 @@ public class Logics {
         }
     }
 
-    public static void townRename(String townName){
-        //TODO: Remplacer dans le residents, chunks et chunks principaux le nom de la ville (Cache et SQL Database)
+    public static void townRename(Player sender, String townName, String newName){
+        if(!isTownNameTaken(newName)){
+            try{
+                final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                PreparedStatement ps = connection.prepareStatement("UPDATE towns_list SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("UPDATE towns_claims SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("UPDATE primary_chunks SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("UPDATE towns_owner SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("UPDATE town_admins SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("UPDATE town_residents SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                ps = connection.prepareStatement("UPDATE town_treasurers SET town=? WHERE town=?");
+                ps.setString(1, newName);
+                ps.setString(2, townName);
+                ps.executeUpdate();
+
+                for(TownCache tc : Main.getTownCache()){
+                    if(tc.getTownName().equals(townName)) tc.setTownName(newName);
+                }
+                sender.sendMessage(Prefixes.townBasicPrefix + "The town rename was successfull!");
+                townAnnoucement(newName, Prefixes.townAnnouncementPrefix + "Your town changed of name! It is now called " + newName + ".");
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "This town name is already taken!");
+        }
     }
 
     public static void deleteTown(String townName){
         try{
+            townAnnoucement(townName, Prefixes.townBasicPrefix + "Your town is deleted!");
+
             final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
-            final PreparedStatement ps = connection.prepareStatement("DELETE FROM towns_claims WHERE town=?");
+            PreparedStatement ps = connection.prepareStatement("DELETE FROM towns_list WHERE town=?");
             ps.setString(1, townName);
             ps.executeUpdate();
-        }catch (SQLException e){
+
+            ps = connection.prepareStatement("DELETE FROM towns_claims WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("DELETE FROM primary_chunks WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("DELETE FROM towns_owner WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("DELETE FROM town_admins WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("DELETE FROM town_treasurers WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("DELETE FROM town_residents WHERE town=?");
+            ps.setString(1, townName);
+            ps.executeUpdate();
+
+            List<TownCache> list = Main.getTownCache();
+            for(Iterator<TownCache> iter = list.iterator() ; iter.hasNext();){
+                TownCache tc = iter.next();
+                if(tc.getTownName().equals(townName)){
+                    iter.remove();
+                    break;
+                }
+            }
+            Main.setTownCache(list);
+        }catch(Exception e){
             e.printStackTrace();
         }
     }
@@ -243,7 +646,7 @@ public class Logics {
         return totalChunksClaimed / totalChunksCount;
     }
 
-    private static double processClaimedChunk() {
+    public static double processClaimedChunk() {
         List<Chunk> chunkList = new ArrayList<>();
         for(TownCache tc : Main.getTownCache()){
             chunkList.addAll(Arrays.asList(tc.getClaimedChunks()));
@@ -251,7 +654,7 @@ public class Logics {
         return chunkList.size();
     }
 
-    private static boolean playerHasMoneyToCreateTown(Player p) {
+    public static boolean playerHasMoneyToCreateTown(Player p) {
         Inventory inv = p.getInventory();
         return inv.contains(Material.IRON_INGOT, 10) && inv.contains(Material.GOLD_INGOT, 10);
     }
@@ -264,123 +667,83 @@ public class Logics {
             PreparedStatement ps = connection.prepareStatement("SELECT * FROM towns_list");
             ResultSet rs = ps.executeQuery();
 
-            //Retreive all towns names from database
-            List<String> townsNames = new ArrayList<>();
+            List<TownCache> townsCache = Main.getTownCache();
             while(rs.next()){
-                townsNames.add(rs.getString("town"));
-            }
+                String townName = rs.getString("town");
+                PreparedStatement prepstatement = connection.prepareStatement("SELECT * FROM towns_owner WHERE town=?");
+                prepstatement.setString(1, townName);
+                ResultSet resSet = prepstatement.executeQuery();
 
-            //La liste temporaire de TownCache classes que je vais push a la fin de la procedure
-            List<TownCache> townCache = Main.getTownCache();
-            for(String townName : townsNames){
-                townCache.add(new TownCache(townName, null, null, null, null, null, null));
-            }
-
-            //Retreive owners from Database
-            ps = connection.prepareStatement("SELECT * FROM towns_owner");
-            ResultSet rs1 = ps.executeQuery();
-            //TODO: add to class
-            HashMap<String, UUID> ownersMap = new HashMap<>();
-            while(rs1.next()){
-                ownersMap.put(rs1.getString("town"), UUID.fromString(rs1.getString("owner_uuid")));
-            }
-
-            ps = connection.prepareStatement("SELECT * FROM town_admins");
-            ResultSet rs2 = ps.executeQuery();
-            //TODO: add to class
-            HashMap<String, UUID[]> adminsMap = new HashMap<>();
-            while(rs2.next()){
-                UUID[] tempUUIDList = getUUIDListFromString(rs2.getString("admins_uuid"));
-                adminsMap.put(rs2.getString("town"), tempUUIDList);
-            }
-
-            ps = connection.prepareStatement("SELECT * FROM town_treasurers");
-            ResultSet rs3 = ps.executeQuery();
-            //TODO: add to class
-            HashMap<String, UUID[]> treasurersMap = new HashMap<>();
-            while(rs3.next()){
-                UUID[] tempTreasurersList = getUUIDListFromString(rs3.getString("treasurers_uuid"));
-                treasurersMap.put(rs3.getString("town"), tempTreasurersList);
-            }
-
-            ps = connection.prepareStatement("SELECT * FROM town_treasurers");
-            ResultSet rs4 = ps.executeQuery();
-            //TODO: add to class
-            HashMap<String, UUID[]> residentsMap = new HashMap<>();
-            while(rs4.next()){
-                UUID[] tempResidentsList = getUUIDListFromString(rs4.getString("residents_uuid"));
-                residentsMap.put(rs4.getString("town"), tempResidentsList);
-            }
-
-            ps = connection.prepareStatement("SELECT * FROM towns_claims");
-            ResultSet rs5 = ps.executeQuery();
-            HashMap<String, Chunk[]> claimsMap = new HashMap<>();
-            while(rs5.next()){
-                String currentTown = rs5.getString("town");
-                int x = rs5.getInt("x");
-                int z = rs5.getInt("z");
-                World world = Bukkit.getWorld(rs5.getString("world"));
-
-                if(!claimsMap.containsKey(currentTown)){
-                    Chunk[] tempArray = {world.getChunkAt(x,z)};
-                    claimsMap.put(currentTown, tempArray);
-                }else{
-                    Chunk[] tempArray = claimsMap.get(currentTown);
-                    claimsMap.remove(currentTown);
-                    tempArray = Arrays.copyOf(tempArray, tempArray.length + 1);
-                    tempArray[tempArray.length - 1] = world.getChunkAt(x,z);
-                    claimsMap.put(currentTown, tempArray);
+                UUID townOwner = null;
+                while (resSet.next()){
+                     townOwner = UUID.fromString(resSet.getString("owner_uuid"));
                 }
-            }
 
-            ps = connection.prepareStatement("SELECT * FROM primary_chunks");
-            ResultSet rs6 = ps.executeQuery();
-            HashMap<String, Chunk[]> primaryClaimsMap = new HashMap<>();
-            while(rs5.next()){
-                String currentTown = rs5.getString("town");
-                int x = rs5.getInt("x");
-                int z = rs5.getInt("z");
-                World world = Bukkit.getWorld(rs5.getString("world"));
+                prepstatement = connection.prepareStatement("SELECT * FROM town_admins WHERE town=?");
+                prepstatement.setString(1, townName);
+                resSet = prepstatement.executeQuery();
 
-                if(!primaryClaimsMap.containsKey(currentTown)){
-                    Chunk[] tempArray = {world.getChunkAt(x,z)};
-                    primaryClaimsMap.put(currentTown, tempArray);
-                }else{
-                    Chunk[] tempArray = primaryClaimsMap.get(currentTown);
-                    primaryClaimsMap.remove(currentTown);
-                    tempArray = Arrays.copyOf(tempArray, tempArray.length + 1);
-                    tempArray[tempArray.length - 1] = world.getChunkAt(x,z);
-                    primaryClaimsMap.put(currentTown, tempArray);
+                List<UUID> townAdmins = new ArrayList<>();
+                while (resSet.next()){
+                    townAdmins.add(UUID.fromString(resSet.getString("admins_uuid")));
                 }
+
+                prepstatement = connection.prepareStatement("SELECT * FROM town_treasurers WHERE town=?");
+                prepstatement.setString(1, townName);
+                resSet = prepstatement.executeQuery();
+
+                List<UUID> townTreasurers = new ArrayList<>();
+                while (resSet.next()){
+                    townTreasurers.add(UUID.fromString(resSet.getString("treasurers_uuid")));
+                }
+
+                prepstatement = connection.prepareStatement("SELECT * FROM town_residents WHERE town=?");
+                prepstatement.setString(1, townName);
+                resSet = prepstatement.executeQuery();
+
+                List<UUID> townResidents = new ArrayList<>();
+                while (resSet.next()){
+                    townResidents.add(UUID.fromString(resSet.getString("residents_uuid")));
+                }
+
+                prepstatement = connection.prepareStatement("SELECT * FROM towns_claims WHERE town=?");
+                prepstatement.setString(1, townName);
+                resSet = prepstatement.executeQuery();
+
+                List<Chunk> townClaims = new ArrayList<>();
+                while(resSet.next()){
+                    townClaims.add(Bukkit.getWorld(resSet.getString("world")).getChunkAt(resSet.getInt("x"), resSet.getInt("z")));
+                }
+
+                prepstatement = connection.prepareStatement("SELECT * FROM primary_chunks WHERE town=?");
+                prepstatement.setString(1, townName);
+                resSet = prepstatement.executeQuery();
+
+                List<Chunk> townPrimary = new ArrayList<>();
+                while(resSet.next()){
+                    townPrimary.add(Bukkit.getWorld(resSet.getString("world")).getChunkAt(resSet.getInt("x"), resSet.getInt("z")));
+                }
+
+                UUID[] townAdmin = new UUID[townAdmins.size()];
+                UUID[] townTreasurer = new UUID[townTreasurers.size()];
+                UUID[] townRes = new UUID[townResidents.size()];
+                Chunk[] townClaim = new Chunk[townClaims.size()];
+                Chunk[] primeChunk = new Chunk[townPrimary.size()];
+
+                townAdmin = townAdmins.toArray(townAdmin);
+                townTreasurer = townTreasurers.toArray(townTreasurer);
+                townRes = townResidents.toArray(townRes);
+                townClaim = townClaims.toArray(townClaim);
+                primeChunk = townPrimary.toArray(primeChunk);
+                townsCache.add(new TownCache(townName, townOwner, townAdmin, townTreasurer, townRes, townClaim, primeChunk, getBankFromSQL(townName)));
             }
 
-            for(TownCache townCache1 : townCache){
-                String townName = townCache1.getTownName();
-                townCache1.setOwner(ownersMap.get(townName));
-                townCache1.setAdmins(adminsMap.get(townName));
-                townCache1.setTreasurers(treasurersMap.get(townName));
-                townCache1.setResidents(residentsMap.get(townName));
-                townCache1.setClaimedChunks(claimsMap.get(townName));
-                townCache1.setPrimaryChunks(primaryClaimsMap.get(townName));
-            }
-
+            Main.setTownCache(townsCache);
         }catch (SQLException e){
             e.printStackTrace();
             Bukkit.getLogger().info(Prefixes.severeError + "Something herribly wrong happened while loading database info in cache on server!");
         }
         Bukkit.getServer().getLogger().info(ChatColor.GREEN + "Finished cache initialization! This task took " + (Calendar.getInstance().getTimeInMillis() - startTime) + "ms!");
-    }
-
-    private static UUID[] getUUIDListFromString(String admins_uuid) {
-        String[] StringUUIDList = admins_uuid.split(";");
-        UUID[] TempUUIDList = {};
-        for(String str : StringUUIDList){
-            if(!str.isEmpty()){
-                TempUUIDList = Arrays.copyOf(TempUUIDList, TempUUIDList.length + 1);
-                TempUUIDList[TempUUIDList.length - 1] = UUID.fromString(str);
-            }
-        }
-        return TempUUIDList;
     }
 
     public static String getPlayerRole(UUID uuid1){
@@ -417,22 +780,252 @@ public class Logics {
         return false;
     }
 
-    public static void closeCacheProcedure() {
-        long start = Calendar.getInstance().getTimeInMillis();
-        try{
-            for(TownCache tc : Main.getTownCache()){
-                //TODO: Faire le reste de la procedure.
-            }
-        }catch (Exception e){
-            e.printStackTrace();
-        }
-        Bukkit.getServer().getLogger().info("Shutdown of cache has been done in " + (Calendar.getInstance().getTimeInMillis() - start) + "ms!");
-    }
-
     public static boolean doesPlayerExist(String playerName){
         for(Player p : Bukkit.getOnlinePlayers()){
             if(p.getName().equals(playerName)) return true;
         }
         return false;
     }
+
+    public static TownCache getTownByChunk(Chunk chunk) {
+        for(TownCache tc : Main.getTownCache()){
+            if(Arrays.stream(tc.getClaimedChunks()).toList().contains(chunk)) return tc;
+        }
+        return null;
+    }
+
+    public static void unclaimChunk(Player sender, Chunk chunk){
+        TownCache town = Logics.getTownByChunk(chunk);
+        List<Chunk> chunks = new LinkedList<Chunk>(Arrays.asList(town.getClaimedChunks()));
+        chunks.remove(chunk);
+        town.setClaimedChunks(chunks.toArray(new Chunk[chunks.size()]));
+        try{
+            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+            PreparedStatement ps = connection.prepareStatement("DELETE FROM towns_claims WHERE x=? AND z=? AND world=? AND town=?");
+            ps.setInt(1, chunk.getX());
+            ps.setInt(2, chunk.getZ());
+            ps.setString(3, chunk.getWorld().getName());
+            ps.setString(4, town.getTownName());
+            ps.executeUpdate();
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
+        sender.sendMessage(Prefixes.townBasicPrefix + "Successfully unclaimed this chunk!");
+    }
+
+    public static void removePrimaryChunk(Player sender ,Chunk chunk){
+        TownCache town = Logics.getTownByChunk(chunk);
+        if(Logics.isChunkPrimary(chunk)){
+            List<Chunk> primaryChunks = new LinkedList<Chunk>(Arrays.asList(town.getPrimaryChunks()));
+            primaryChunks.remove(chunk);
+            town.setPrimaryChunks(primaryChunks.toArray(new Chunk[primaryChunks.size()]));
+            try{
+                final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+                PreparedStatement ps = connection.prepareStatement("DELETE FROM primary_chunks WHERE x=? AND z=? AND world=? AND town=?");
+                ps.setInt(1, chunk.getX());
+                ps.setInt(2, chunk.getZ());
+                ps.setString(3, chunk.getWorld().getName());
+                ps.setString(4, town.getTownName());
+                ps.executeUpdate();
+            }catch (SQLException e){
+                e.printStackTrace();
+            }
+            sender.sendMessage(Prefixes.townBasicPrefix + "Succesfully removed chunk from primary chunks!");
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "This chunk is not a primary chunk!");
+        }
+    }
+
+    public static void warBeginProcedure(Player sender, Chunk chunk) {
+        TownCache targetTown = Logics.getTownByChunk(chunk);
+        List<Player> onlinePlayer = new ArrayList<>();
+        for(UUID uuid : targetTown.getResidents()){
+            Player p = Bukkit.getPlayer(uuid);
+            if(p.isOnline()){
+                onlinePlayer.add(p);
+            }
+        }
+        if(onlinePlayer.size() >= 1){
+            if (!Arrays.stream(Logics.getTownByChunk(chunk).getPrimaryChunks()).toList().contains(chunk)){
+                if(playerCanPayWarFee(sender)){
+                    //TODO: Faire les procedures pour le temps rester dans un chunk pis toute genre pis genre le win ou le perdre.
+                    TownCache townOfSender = Logics.getTownByName(getTownOfPlayer(sender));
+                    townOfSender.setWarChunk(chunk);
+
+                    townAnnoucement(townOfSender.getTownName(), Prefixes.townBasicPrefix + "You are now in war with the town " + targetTown.getTownName() + " for the chunk at (" + chunk.getX() + ";" + chunk.getZ() + ")!");
+                }else {
+                    sender.sendMessage(Prefixes.townBasicPrefix + "You don't have enough ressource to start a war! You need 16 diamonds and " + processPrice() + " of gold/iron ingots.");
+                }
+            }else{
+                sender.sendMessage(Prefixes.townBasicPrefix + "This is a primary chunk, you can't start a war!");
+            }
+        }else{
+            sender.sendMessage(Prefixes.townBasicPrefix + "The opposite town don't have enough online players to start a war. (Need at least 2 players online!)");
+        }
+    }
+
+    public static boolean playerCanPayWarFee(Player p) {
+        int amountOfDiamondsRequired = 16;
+
+        Inventory inv = p.getInventory();
+
+        ItemStack item1 = new ItemStack(Material.GOLD_INGOT, processPrice());
+        ItemStack item2 = new ItemStack(Material.IRON_INGOT, processPrice());
+        ItemStack item3 = new ItemStack(Material.DIAMOND, amountOfDiamondsRequired);
+
+        if(inv.containsAtLeast(item1, processPrice()) && inv.containsAtLeast(item2, processPrice()) && inv.containsAtLeast(item3, amountOfDiamondsRequired)){
+            boolean gold = false;
+            boolean iron = false;
+            boolean diamond = false;
+            for(ItemStack itemStack : inv.getContents()) {
+                if (itemStack.getType().equals(Material.GOLD_INGOT)) {
+                    if (!gold) {
+                        itemStack.setAmount(itemStack.getAmount() - processPrice());
+                        gold = true;
+                    }
+                }
+
+                if (itemStack.getType().equals(Material.IRON_INGOT)) {
+                    if (!iron) {
+                        itemStack.setAmount(itemStack.getAmount() - processPrice());
+                        iron = true;
+                    }
+                }
+
+                if (itemStack.getType().equals(Material.DIAMOND)) {
+                    if (!diamond) {
+                        itemStack.setAmount(itemStack.getAmount() - amountOfDiamondsRequired);
+                        diamond = true;
+                    }
+                }
+                if (iron && gold && diamond) {
+                    return true;
+                }
+            }
+            return false;
+        }else{
+            return false;
+        }
+    }
+
+    public static boolean townContainsPlayerInChunk(TownCache town, Chunk chunk) {
+        for(UUID uuid : town.getResidents()){
+            Player p = Bukkit.getPlayer(uuid);
+            if(p.getChunk().equals(chunk)) return true;
+        }
+        return false;
+    }
+
+    //Quand les attaquants win.
+    public static void endWarProcessAsAttackers(TownCache attackers, Chunk warChunk) {
+        //Faire la procedure pour donner le chunk a la ville et l'enlever du cache.
+        attackers.setSecondsInWarChunk(0);
+        attackers.setWarChunk(null);
+
+        try{
+            final Connection connection = Main.getDatabaseManager().getInfoConnection().getConnection();
+            PreparedStatement ps = connection.prepareStatement("DELETE FROM towns_claims WHERE x=? AND y=? AND world=?");
+            ps.setInt(1, warChunk.getX());
+            ps.setInt(2, warChunk.getZ());
+            ps.setString(3, warChunk.getWorld().getName());
+            ps.executeUpdate();
+
+            ps = connection.prepareStatement("INSERT INTO towns_claims VALUES(?, ?, ?, ?)");
+            ps.setInt(1, warChunk.getX());
+            ps.setInt(2, warChunk.getZ());
+            ps.setString(3, warChunk.getWorld().getName());
+            ps.setString(4, attackers.getTownName());
+            ps.executeUpdate();
+        }catch (SQLException e){
+            e.printStackTrace();
+        }
+
+        HashMap<String, String> hashMap = Main.getChunksWars();
+
+        TownCache defenders = Logics.getTownByName(hashMap.get(attackers.getTownName()));
+        townAnnoucement(defenders.getTownName(), Prefixes.townBasicPrefix + "Your town losed the current chunk war. What a shame!");
+        List<Chunk> defendersChunks = Arrays.asList(defenders.getClaimedChunks());
+        defendersChunks.remove(warChunk);
+        defenders.setClaimedChunks(defendersChunks.toArray(new Chunk[defendersChunks.size()]));
+        defenders.setSecondsInWarChunk(0);
+
+        List<Chunk> attackersChunks = Arrays.asList(attackers.getClaimedChunks());
+        attackersChunks.add(warChunk);
+        attackers.setClaimedChunks(attackersChunks.toArray(new Chunk[attackersChunks.size()]));
+
+        hashMap.remove(attackers.getTownName());
+        Main.setChunksWars(hashMap);
+        //Fin de la procedure ici
+
+        //Donner la mise dans le milieu du chunk.
+        World world = warChunk.getWorld();
+        int ChunkX = warChunk.getX() * 16 + 8;
+        int ChunkZ = warChunk.getZ() * 16 + 8;
+
+        int yCoos = 80;
+        while(!new Location(world, ChunkX, yCoos,ChunkZ).getBlock().getType().equals(Material.AIR)){
+            yCoos = yCoos + 1;
+        }
+
+        Location loc = new Location(world, ChunkX, yCoos, ChunkZ);
+        ItemStack iron = new ItemStack(Material.IRON_INGOT, processPrice());
+        ItemStack gold = new ItemStack(Material.GOLD_INGOT, processPrice());
+        ItemStack diamond = new ItemStack(Material.DIAMOND, 16);
+
+        loc.getWorld().dropItemNaturally(loc, iron);
+        loc.getWorld().dropItemNaturally(loc, gold);
+        loc.getWorld().dropItemNaturally(loc, diamond);
+
+        townAnnoucement(attackers.getTownName(), Prefixes.townBasicPrefix + "Your town successfully winned the battle for chunk in world " + warChunk.getWorld().getName() + " at " + warChunk.getX() + ";" + warChunk.getZ() + "!");
+        townAnnoucement(attackers.getTownName(), Prefixes.townBasicPrefix + "Your rewards for winning the chunk has spawned in " + loc.getWorld().getName() + " at " + loc.getX() + ";" + loc.getY() + ";" + loc.getZ() + "! Go take them!");
+    }
+
+    //Quand les defendeurs win.
+    public static void endWarProcessAsDefenders(TownCache defenders, TownCache attackers, Chunk warChunk) {
+        //Faire la procedure pour donner le chunk a la ville et l'enlever du cache.
+        HashMap<String, String> hashMap = Main.getChunksWars();
+        defenders.setSecondsInWarChunk(0);
+        attackers.setSecondsInWarChunk(0);
+        attackers.setWarChunk(null);
+        townAnnoucement(attackers.getTownName(), Prefixes.townBasicPrefix + "Your town losed the current chunk war. What a shame!");
+        hashMap.remove(attackers.getTownName());
+        Main.setChunksWars(hashMap);
+        //Fin de la procedure ici
+
+        //Donner la mise dans le milieu du chunk.
+        World world = warChunk.getWorld();
+        int ChunkX = warChunk.getX() * 16 + 8;
+        int ChunkZ = warChunk.getZ() * 16 + 8;
+
+        int yCoos = 80;
+        while(!new Location(world, ChunkX, yCoos,ChunkZ).getBlock().getType().equals(Material.AIR)){
+            yCoos = yCoos + 1;
+        }
+
+        Location loc = new Location(world, ChunkX, yCoos, ChunkZ);
+        ItemStack iron = new ItemStack(Material.IRON_INGOT, processPrice());
+        ItemStack gold = new ItemStack(Material.GOLD_INGOT, processPrice());
+        ItemStack diamond = new ItemStack(Material.DIAMOND, 16);
+
+        loc.getWorld().dropItemNaturally(loc, iron);
+        loc.getWorld().dropItemNaturally(loc, gold);
+        loc.getWorld().dropItemNaturally(loc, diamond);
+
+        townAnnoucement(defenders.getTownName(), Prefixes.townBasicPrefix + "Your town successfully winned the battle for chunk in world " + warChunk.getWorld().getName() + " at " + warChunk.getX() + ";" + warChunk.getZ() + "!");
+        townAnnoucement(defenders.getTownName(), Prefixes.townBasicPrefix + "Your rewards for winning the chunk has spawned in " + loc.getWorld().getName() + " at " + loc.getX() + ";" + loc.getY() + ";" + loc.getZ() + "! Go take them!");
+    }
+
+    public static boolean isPlayerOfTownAlreadyInBankInventory(TownCache town){
+        for(UUID uuid : town.getResidents()){
+            OfflinePlayer offP = Bukkit.getOfflinePlayer(uuid);
+            if(offP.isOnline()){
+                Player p = Bukkit.getPlayer(uuid);
+                if(p.getOpenInventory().getTitle().equals("Bank")){
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
 }

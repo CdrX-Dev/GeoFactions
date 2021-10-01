@@ -1,6 +1,7 @@
 package me.cdrx.gui.menus;
 
 import me.cdrx.Main;
+import me.cdrx.geofactions.Logics;
 import me.cdrx.geofactions.TownCache;
 import me.cdrx.gui.Menu;
 import me.cdrx.gui.PlayerMenuUtility;
@@ -9,6 +10,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -42,13 +44,8 @@ public class TownHabMenu extends Menu {
                 Menu inv = new TownPopulationMenu(playerMenuUtility);
                 inv.open();
     		}
-			//Banque
-            else if (e.getSlot() == 13) {
-                Menu inv = new TownBankMenu(playerMenuUtility);
-                inv.open();
-            }
             //claim
-            else if (e.getSlot() == 15) {
+            else if (e.getSlot() == 16) {
                 List<UUID> list = Main.getClaimsView();
                 if(list.contains(player.getUniqueId())){
                     list.remove(player.getUniqueId());
@@ -80,15 +77,16 @@ public class TownHabMenu extends Menu {
         pop.setItemMeta(metapop);
         inventory.setItem(10,pop);
 
-        //Claim
-        ItemStack clm = new ItemStack(Material.IRON_AXE);
+        //Claim view
+        ItemStack clm = new ItemStack(Material.ENDER_EYE);
         ItemMeta metaclm = clm.getItemMeta();
-        metaclm.setDisplayName(ChatColor.GRAY + "CLAIM");
+        metaclm.setDisplayName(ChatColor.GRAY + "CLAIM VIEW");
         List<String> loreclm = new ArrayList<String>();
         loreclm.add("See your claims");
+        metaclm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         metaclm.setLore(loreclm);
         clm.setItemMeta(metaclm);
-        inventory.setItem(15,clm);
+        inventory.setItem(16,clm);
 
         //Recap
         List<TownCache> list1 = Main.getTownCache();
@@ -96,19 +94,11 @@ public class TownHabMenu extends Menu {
         String owner = null;
         int population = 0;
         int claimedchunk = 0;
-        for(TownCache cache: list1){
-            for(UUID uuid : cache.getResidents()){
-                if(uuid.equals(p.getUniqueId())){
-                    townName = cache.getTownName();
-                    population = cache.getResidents().length;
-                    claimedchunk = cache.getClaimedChunks().length;
-                    owner = Bukkit.getPlayer(cache.getOwner()).getName();
-                    //Faire war status
-                    //warStatus = cache.getWarStatus();
-                    break;
-                }
-            }
-        }
+        TownCache cache = Logics.getTownByName(Logics.getTownOfPlayer(p));
+        townName = cache.getTownName();
+        population = cache.getResidents().length;
+        claimedchunk = cache.getClaimedChunks().length;
+        owner = Bukkit.getOfflinePlayer(cache.getOwner()).getName();
 
         ItemStack rcp = new ItemStack(Material.ENCHANTED_BOOK);
         ItemMeta metarcp = rcp.getItemMeta();
@@ -116,7 +106,7 @@ public class TownHabMenu extends Menu {
         List<String> lorercp = new ArrayList<String>();
         lorercp.add("-----------------------------");
         lorercp.add("Residents: " + population);
-        lorercp.add("Claimed chunk: " + claimedchunk);
+        lorercp.add("Claimed chunks: " + claimedchunk);
         lorercp.add("Owner: " + owner);
         //faire war status
         //lorercp.add("War status: " + warStatus);

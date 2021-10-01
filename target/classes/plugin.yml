@@ -6,3 +6,5 @@ api-version: 1.17
 commands:
   geofactions:
     description: C'est genre la commande principale de geo-faction!
+  claimsList:
+    description: C'est genre la commande pour avoir la liste des chunks de ta ville.

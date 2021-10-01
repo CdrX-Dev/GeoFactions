@@ -5,11 +5,14 @@ import me.cdrx.Prefixes;
 import me.cdrx.gui.PlayerMenuUtility;
 import me.cdrx.gui.menus.*;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
 
 public class GeoFactionsCommands implements CommandExecutor {
@@ -23,7 +26,6 @@ public class GeoFactionsCommands implements CommandExecutor {
                     CreatingTownMenu inv = new CreatingTownMenu(menuUtility);
                     inv.open();
                 }else{
-                    p.sendMessage(Prefixes.townBasicPrefix + "You do have a town broo!");
                     if(isPlayerTownOwner(p)){
                         TownOwnerMenu inv = new TownOwnerMenu(menuUtility);
                         inv.open();
@@ -55,13 +57,7 @@ public class GeoFactionsCommands implements CommandExecutor {
                 sender1.sendMessage(Prefixes.townBasicPrefix + player.getName() + " denied your request!");
             }else if(args[0].equals("deleteTown")) {
                 UUID playerUUID = UUID.fromString(args[1]);
-                for(TownCache tc : Main.getTownCache()){
-                    for(UUID uuid : tc.getResidents()){
-                        if(uuid.equals(playerUUID)){
-                            Logics.deleteTown(tc.getTownName());
-                        }
-                    }
-                }
+                Logics.deleteTown(Logics.getTownOfPlayer(Bukkit.getPlayer(playerUUID)));
             }else if(args[0].equals("dontDeleteTown")){
                 Player player = Bukkit.getPlayer(UUID.fromString(args[1]));
                 player.sendMessage(Prefixes.townBasicPrefix + "Hooo, so you finally decided to not delete your town.");

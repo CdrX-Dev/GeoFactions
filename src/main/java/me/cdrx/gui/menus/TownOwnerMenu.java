@@ -2,6 +2,7 @@ package me.cdrx.gui.menus;
 
 import me.cdrx.Main;
 import me.cdrx.Prefixes;
+import me.cdrx.geofactions.Logics;
 import me.cdrx.geofactions.TownCache;
 import me.cdrx.gui.Menu;
 import me.cdrx.gui.PlayerMenuUtility;
@@ -11,9 +12,11 @@ import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Chunk;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -47,10 +50,15 @@ public class TownOwnerMenu extends Menu {
             if (e.getSlot() == 10) {
                 Menu inv = new TownPopulationMenu(playerMenuUtility);
                 inv.open();
-
             }
+            //Role
+            if (e.getSlot() == 19) {
+                Menu inv = new RolesMenu(playerMenuUtility);
+                inv.open();
+            }
+
             //Invite
-            else if (e.getSlot() == 25) {
+            else if (e.getSlot() == 34) {
                 player.closeInventory();
                 player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the new member");
                 player.sendMessage(Prefixes.townBasicPrefix + "Type 'cancel' to cancel this action!");
@@ -58,11 +66,45 @@ public class TownOwnerMenu extends Menu {
                 HashMap<UUID, String> map = Main.getTypingPlayers();
                 map.put(player.getUniqueId(), "invite_player");
                 Main.setTypingPlayers(map);
+            }else if(e.getSlot() == 43){
+                Chunk c = player.getChunk();
+                if(!Logics.isChunkClaimed(c)) return;
+                if(!Logics.isChunkClaimedWithPlayerTown(player, c)){
+                    Menu menu = new EnemyClaimMenu(playerMenuUtility);
+                    menu.open();
+                }
+
+            //claim
+            }else if(e.getSlot() == 25){
+                if(e.getCurrentItem().getType().equals(Material.IRON_AXE)) {
+                    Logics.claimChunk(e.getWhoClicked().getChunk(), Logics.getTownOfPlayer((Player) e.getWhoClicked()),(Player) e.getWhoClicked());
+                    player.closeInventory();
+                    new TownOwnerMenu(playerMenuUtility).open();
+                }else if(e.getCurrentItem().getType().equals(Material.GOLDEN_AXE)){
+                    player.closeInventory();
+                    Logics.setChunkAsPrimary(player, player.getChunk(), Logics.getTownOfPlayer(player));
+                    new TownOwnerMenu(playerMenuUtility).open();
+                }
             }
             //Banque
             else if (e.getSlot() == 28) {
-                Menu inv = new TownBankMenu(playerMenuUtility);
-                inv.open();
+                if(!Logics.isPlayerOfTownAlreadyInBankInventory(Logics.getTownByName(Logics.getTownOfPlayer(player)))){
+                    Menu inv = new TownBankMenu(playerMenuUtility);
+                    inv.open();
+                }else{
+                    player.sendMessage(Prefixes.townBasicPrefix + "Someone is already in the town bank! Wait until he's not.");
+                }
+            //unclaim
+            }else if(e.getSlot() == 24){
+                if(e.getCurrentItem().getType().equals(Material.STONE_AXE)){
+                    Logics.removePrimaryChunk(player, player.getChunk());
+                    player.closeInventory();
+                    new TownOwnerMenu(playerMenuUtility).open();
+                }else if(e.getCurrentItem().getType().equals(Material.WOODEN_AXE)){
+                    Logics.unclaimChunk(player, player.getChunk());
+                    player.closeInventory();
+                    new TownOwnerMenu(playerMenuUtility).open();
+                }
             }
             //Delete
             else if (e.getSlot() == 37) {
@@ -88,7 +130,7 @@ public class TownOwnerMenu extends Menu {
                 player.spigot().sendMessage(message);
                 player.spigot().sendMessage(message1);
             }
-            //claim
+            //claim vision
             else if (e.getSlot() == 16) {
                 List<UUID> list = Main.getClaimsView();
                 if(list.contains(player.getUniqueId())){
@@ -97,6 +139,16 @@ public class TownOwnerMenu extends Menu {
                     list.add(player.getUniqueId());
                 }
                 Main.setClaimsView(list);
+
+            }
+            //kick player
+            else if (e.getSlot() == 33) {
+                player.closeInventory();
+                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player that you want to kick from your town!");
+
+                HashMap<UUID, String> map = Main.getTypingPlayers();
+                map.put(player.getUniqueId(), "demote_resident");
+                Main.setTypingPlayers(map);
             }
         }
     }
@@ -142,15 +194,66 @@ public class TownOwnerMenu extends Menu {
         bnk.setItemMeta(metabnk);
         inventory.setItem(28,bnk);
 
-        //Claim
-        ItemStack clm = new ItemStack(Material.IRON_AXE);
+        //Claim vision
+        ItemStack clm = new ItemStack(Material.ENDER_EYE);
         ItemMeta metaclm = clm.getItemMeta();
-        metaclm.setDisplayName(ChatColor.GRAY + "CLAIM");
+        metaclm.setDisplayName(ChatColor.GRAY + "CLAIM VISION");
         ArrayList<String> loreclm = new ArrayList<String>();
         loreclm.add("See your claims");
+        metaclm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
         metaclm.setLore(loreclm);
         clm.setItemMeta(metaclm);
         inventory.setItem(16,clm);
+
+        //Claim
+        if(!Logics.isChunkClaimed(p.getChunk())) {
+            ItemStack cla = new ItemStack(Material.IRON_AXE);
+            ItemMeta metacla = cla.getItemMeta();
+            metacla.setDisplayName(ChatColor.GRAY + "CLAIM");
+            ArrayList<String> lorecla = new ArrayList<String>();
+            lorecla.add("Claim this chunk");
+            metacla.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+            metacla.setLore(lorecla);
+            cla.setItemMeta(metacla);
+            inventory.setItem(25, cla);
+        }else{
+            if(Logics.isChunkClaimedWithPlayerTown(p, p.getChunk())){
+                ItemStack cla = new ItemStack(Material.GOLDEN_AXE);
+                ItemMeta metacla = cla.getItemMeta();
+                metacla.setDisplayName(ChatColor.GRAY + "CLAIM AS PRIMARY");
+                ArrayList<String> lorecla = new ArrayList<String>();
+                lorecla.add("Claim this chunk");
+                metacla.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+                metacla.setLore(lorecla);
+                cla.setItemMeta(metacla);
+                inventory.setItem(25, cla);
+            }
+        }
+
+        //unclaim
+        if(Logics.isChunkClaimedWithPlayerTown(p, p.getChunk())) {
+            if(Logics.isChunkPrimary(p.getChunk())){
+                ItemStack pri = new ItemStack(Material.STONE_AXE);
+                ItemMeta metapri = pri.getItemMeta();
+                metapri.setDisplayName(ChatColor.GRAY + "UNCLAIM A PRIMARY CHUNK");
+                ArrayList<String> lorepri = new ArrayList<String>();
+                lorepri.add("Unclaim this chunk");
+                metapri.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+                metapri.setLore(lorepri);
+                pri.setItemMeta(metapri);
+                inventory.setItem(24, pri);
+            }else{
+                ItemStack unc = new ItemStack(Material.WOODEN_AXE);
+                ItemMeta metaunc = unc.getItemMeta();
+                metaunc.setDisplayName(ChatColor.GRAY + "UNCLAIM");
+                ArrayList<String> loreunc = new ArrayList<String>();
+                loreunc.add("Unclaim this chunk");
+                metaunc.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+                metaunc.setLore(loreunc);
+                unc.setItemMeta(metaunc);
+                inventory.setItem(24, unc);
+            }
+        }
 
         //Recap
         List<TownCache> list1 = Main.getTownCache();
@@ -158,25 +261,19 @@ public class TownOwnerMenu extends Menu {
         String owner = null;
         int population = 0;
         int claimedchunk = 0;
-        for(TownCache cache: list1){
-            for(UUID uuid : cache.getResidents()){
-                if(uuid.equals(p.getUniqueId())){
-                    townName = cache.getTownName();
-                    population = cache.getResidents().length;
-                    claimedchunk = cache.getClaimedChunks().length;
-                    owner = Bukkit.getPlayer(cache.getOwner()).getName();
-                    break;
-                }
-            }
-        }
-        
+        TownCache cache = Logics.getTownByName(Logics.getTownOfPlayer(p));
+        townName = cache.getTownName();
+        population = cache.getResidents().length;
+        claimedchunk = cache.getClaimedChunks().length;
+        owner = Bukkit.getOfflinePlayer(cache.getOwner()).getName();
+
         ItemStack rcp = new ItemStack(Material.ENCHANTED_BOOK);
         ItemMeta metarcp = rcp.getItemMeta();
         metarcp.setDisplayName(ChatColor.GRAY + townName);
         List<String> lorercp = new ArrayList<String>();
         lorercp.add("-------------------------");
         lorercp.add("Residents: " + population);
-        lorercp.add("Claimed chunk: " + claimedchunk);
+        lorercp.add("Claimed chunks: " + claimedchunk);
         lorercp.add("Owner: " + owner);
         //TODO: Status de guerre
         lorercp.add("-------------------------");
@@ -185,10 +282,8 @@ public class TownOwnerMenu extends Menu {
         inventory.setItem(22,rcp);
 
 
-
-
         //Delete
-        ItemStack del = new ItemStack(Material.BARRIER);
+        ItemStack del = new ItemStack(Material.RED_STAINED_GLASS_PANE);
         ItemMeta metadel = del.getItemMeta();
         metadel.setDisplayName(ChatColor.GRAY + "DELETE");
         List<String> loredel = new ArrayList<String>();
@@ -205,6 +300,28 @@ public class TownOwnerMenu extends Menu {
         loreinv.add("Invite a friend or a servant!");
         metainv.setLore(loreinv);
         inv.setItemMeta(metainv);
-        inventory.setItem(25,inv);
+        inventory.setItem(34,inv);
+
+        //Kick player
+        ItemStack kk = new ItemStack(Material.BARRIER);
+        ItemMeta metakk = kk.getItemMeta();
+        metakk.setDisplayName(ChatColor.GRAY + "KICK A PLAYER");
+        List<String> lorekk = new ArrayList<String>();
+        lorekk.add("Kick a player from the town");
+        metakk.setLore(lorekk);
+        kk.setItemMeta(metakk);
+        inventory.setItem(33,kk);
+
+        /*
+        //Pour mettre le bouton si le joueur est dans un chunk enemi
+        if(!Logics.isChunkClaimed(p.getChunk())) return;
+        if(!Logics.isChunkClaimedWithPlayerTown(p, p.getChunk())){
+            ItemStack enemyClaimButton = new ItemStack(Material.RED_WOOL, 1);
+            ItemMeta meta = enemyClaimButton.getItemMeta();
+            meta.setDisplayName(ChatColor.RED + "Enemy Claim");
+            enemyClaimButton.setItemMeta(meta);
+            inventory.setItem(43, enemyClaimButton);
+        }
+         */
     }
 }

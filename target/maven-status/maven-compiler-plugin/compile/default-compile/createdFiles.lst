@@ -1,7 +1,12 @@
 me\cdrx\gui\menus\TownPopulationMenu.class
+me\cdrx\Main$3.class
+me\cdrx\gui\menus\EnemyClaimMenu.class
 me\cdrx\gui\PaginatedMenu.class
+me\cdrx\ClaimsListCommands.class
+me\cdrx\geofactions\TownCache.class
+me\cdrx\Main$2.class
 me\cdrx\gui\Listeners\MenuListener.class
 me\cdrx\gui\menus\RolesMenu.class
+me\cdrx\ClaimsTPCommands.class
 me\cdrx\Main$1.class
-me\cdrx\geofactions\TownCache.class
 me\cdrx\gui\menus\TownBankMenu.class

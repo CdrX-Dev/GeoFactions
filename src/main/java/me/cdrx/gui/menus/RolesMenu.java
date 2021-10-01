@@ -8,6 +8,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
@@ -36,27 +37,38 @@ public class RolesMenu extends Menu {
         if (e.getView().getTitle().equals("Role menu")) {
             e.setCancelled(true);
             Player player = (Player) e.getWhoClicked();
+            String action = "promote";
+            if(e.isRightClick()) action = "demote";
             if (e.getSlot() == 11) {
-                //inventaire se ferme
                 player.closeInventory();
-                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player you want to promote" + ChatColor.RED + "" + ChatColor.BOLD + " Owner");
+                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player you want to " + action + " " + ChatColor.RED + "" + ChatColor.BOLD + " Owner");
                 player.sendMessage(Prefixes.townBasicPrefix + "Type 'cancel' to cancel this action!");
 
                 HashMap<UUID, String> hashMap = Main.getTypingPlayers();
-                hashMap.put(player.getUniqueId(), "promote_owner");
+                hashMap.put(player.getUniqueId(), action + "_owner");
                 Main.setTypingPlayers(hashMap);
             } else if (e.getSlot() == 13) {
                 player.closeInventory();
-                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player you want to promote" + ChatColor.BLUE + "" + ChatColor.BOLD + " Admin");
+                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player you want to " + action + " "  + ChatColor.BLUE + "" + ChatColor.BOLD + " Admin");
                 player.sendMessage(Prefixes.townBasicPrefix + "Type 'cancel' to cancel this action!");
 
-            } else if (e.getSlot() == 13) {
+                HashMap<UUID, String> hashMap = Main.getTypingPlayers();
+                hashMap.put(player.getUniqueId(), action + "_admin");
+                Main.setTypingPlayers(hashMap);
+            } else if (e.getSlot() == 15) {
                 player.closeInventory();
-                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player you want to promote" + ChatColor.GREEN + "" + ChatColor.BOLD + " Treasurer");
+                player.sendMessage(Prefixes.townBasicPrefix + "Type the name of the player you want to " + action + " "  + ChatColor.GREEN + "" + ChatColor.BOLD + " Treasurer");
                 player.sendMessage(Prefixes.townBasicPrefix + "Type 'cancel' to cancel this action!");
+
+                HashMap<UUID, String> hashMap = Main.getTypingPlayers();
+                hashMap.put(player.getUniqueId(), action + "_treasurer");
+                Main.setTypingPlayers(hashMap);
+            }  else if (e.getSlot() == 18) {
+                player.closeInventory();
+                player.performCommand("geofactions");
             }
         }
-    }
+     }
 
     @Override
     public void setMenuItems() {
@@ -69,7 +81,8 @@ public class RolesMenu extends Menu {
         //Back
         ItemStack bck = new ItemStack(Material.REDSTONE);
         ItemMeta metabck = bck.getItemMeta();
-        metabck.setDisplayName("Back");
+        metabck.setDisplayName("BACK");
+        bck.setItemMeta(metabck);
         inventory.setItem(18,bck);
 
         //Owner
@@ -79,6 +92,8 @@ public class RolesMenu extends Menu {
         List<String> loreown = new ArrayList<String>();
         loreown.add(ChatColor.GRAY + "Has every rights in the town");
         metaown.setLore(loreown);
+        metaown.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        own.setItemMeta(metaown);
         inventory.setItem(11,own);
 
         //Admin
@@ -88,16 +103,21 @@ public class RolesMenu extends Menu {
         List<String> loreadm = new ArrayList<String>();
         loreadm.add(ChatColor.GRAY + "Has most of the rights in the town");
         metaadm.setLore(loreadm);
+        metaadm.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
+        adm.setItemMeta(metaadm);
         inventory.setItem(13,adm);
 
         //Treasurer
-        ItemStack tre = new ItemStack(Material.WHEAT);
+        ItemStack tre = new ItemStack(Material.CHEST);
         ItemMeta metatre = tre.getItemMeta();
         metatre.setDisplayName(ChatColor.GREEN + "" + ChatColor.BOLD + "TREASURER");
         List<String> loretre = new ArrayList<String>();
         loretre.add(ChatColor.GRAY + "You have rights! Not a lot but still");
         metatre.setLore(loretre);
-        inventory.setItem(13,tre);
+        tre.setItemMeta(metatre);
+        inventory.setItem(15,tre);
+
+
         }
 }
 
