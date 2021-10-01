@@ -3,11 +3,13 @@ package me.cdrx;
 import me.cdrx.geofactions.Logics;
 import me.cdrx.geofactions.TownCache;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.Chunk;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockExplodeEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerChatEvent;
@@ -181,6 +183,16 @@ public class Listeners implements Listener {
         }
     }
 
+    @EventHandler
+    public void onChatMessage(PlayerChatEvent e){
+        Player p = e.getPlayer();
+        e.setCancelled(true);
+        if(Logics.isPlayerResidentOfATown(p)){
+            Bukkit.broadcastMessage(ChatColor.GRAY + "[" + ChatColor.RED + Logics.getTownOfPlayer(p) + ChatColor.GRAY + "] " + ChatColor.BLUE + e.getPlayer().getName() + ChatColor.GRAY +" : " + e.getMessage());
+        }else{
+            Bukkit.broadcastMessage(ChatColor.BLUE + e.getPlayer().getName() + ChatColor.GRAY +" : " + e.getMessage());
+        }
+    }
 
     //Pour les events en relation avec les claims
     @EventHandler
@@ -237,6 +249,11 @@ public class Listeners implements Listener {
             town.setTownBank(townBank);
             Logics.pushBankToSQL(town.getTownName(), town.getTownBank());
         }
+    }
+
+    @EventHandler
+    public void onExplosion(BlockExplodeEvent e){
+        if(Logics.isChunkPrimary(e.getBlock().getChunk())) e.setCancelled(true);
     }
 }
 

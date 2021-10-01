@@ -8,3 +8,5 @@ commands:
     description: C'est genre la commande principale de geo-faction!
   claimsList:
     description: C'est genre la commande pour avoir la liste des chunks de ta ville.
+  pluginBreakdown:
+    description: Breakdown of the RAM/CPU usage of the plugin.

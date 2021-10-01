@@ -10,3 +10,4 @@ me\cdrx\gui\menus\RolesMenu.class
 me\cdrx\ClaimsTPCommands.class
 me\cdrx\Main$1.class
 me\cdrx\gui\menus\TownBankMenu.class
+me\cdrx\PluginBreakdownCommands.class

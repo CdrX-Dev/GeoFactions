@@ -6,6 +6,7 @@ import me.cdrx.gui.PlayerMenuUtility;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
@@ -57,7 +58,8 @@ public class TownPopulationMenu extends Menu {
             int[] intList = {10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25, 28, 29, 30, 31, 32, 33, 34, 31, 37, 38, 39, 40, 41, 42, 43};
             for (int i = 0; i < playersList.length; i++) {
                 UUID playerUUID = playersList[i];
-                Player player = Bukkit.getPlayer(playerUUID);
+                OfflinePlayer player = Bukkit.getOfflinePlayer(playerUUID);
+                //Player player = Bukkit.getPlayer(playerUUID);
                 int integer1 = intList[i];
                 String role = Logics.getPlayerRole(player.getUniqueId());
                 ItemStack head = new ItemStack(Material.PLAYER_HEAD, 1);

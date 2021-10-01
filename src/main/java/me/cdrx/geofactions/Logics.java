@@ -634,7 +634,7 @@ public class Logics {
 
     public static int processPrice(){
         double claimedLand = processClaimedLandPercent(3000, 3000) * 100;
-        double fonction = (Math.pow(claimedLand, 75/100) + 10);
+        double fonction = (Math.pow(claimedLand, 110.0/100.0) + 10);
 
         return (int) Math.ceil(fonction);
     }

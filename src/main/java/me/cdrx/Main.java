@@ -11,6 +11,8 @@ import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -30,11 +32,23 @@ public class Main extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        //Register des recipes
+        ItemStack shulker = new ItemStack(Material.SHULKER_SHELL);
+        NamespacedKey shulkerKey = new NamespacedKey(this, "shulker_shell");
+        ShapedRecipe shulkerRecipe = new ShapedRecipe(shulkerKey, shulker);
+        shulkerRecipe.shape("B", "B", "B",
+                            "B", "A", "B",
+                            "B", "B", "B");
+        shulkerRecipe.setIngredient('A', Material.PHANTOM_MEMBRANE);
+        shulkerRecipe.setIngredient('B', Material.DIAMOND);
+        Bukkit.addRecipe(shulkerRecipe);
+        //
         dbManager =  new DbManager();
         getServer().getPluginManager().registerEvents(new Listeners(), this);
         getServer().getPluginManager().registerEvents(new MenuListener(), this);
         this.getCommand("geofactions").setExecutor(new GeoFactionsCommands());
         this.getCommand("claimsList").setExecutor(new ClaimsListCommands());
+        this.getCommand("pluginBreakdown").setExecutor(new PluginBreakdownCommands());
         Plugin plugin = Bukkit.getServer().getPluginManager().getPlugin("GeoFactions");
 
         Logics.initializeCache();
